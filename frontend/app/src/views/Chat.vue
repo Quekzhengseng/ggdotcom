@@ -10,17 +10,12 @@
     <main class="flex-grow overflow-y-auto p-6 space-y-6">
       <div v-if="messages.length === 0" class="flex items-center justify-center h-full">
         <div class="text-center text-gray-800 space-y-4">
-          <div class="flex justify-center items-center">
-            <img class="w-24 h-24 object-contain" src="../assets/SGpin.png">
-          </div>
-          <p class="text-2xl font-semibold">Welcome to your AI-powered tour!</p>
           <button 
             class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded mb-4"
             @click="beginTour"
           >
-            Begin Tour
+          Send your current location!
           </button>
-          
           <!-- Loading Spinner -->
           <div v-if="loading" class="flex items-center justify-center mt-4">
             <div class="animate-spin w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full"></div>
@@ -55,18 +50,6 @@
 
     <footer class="bg-white border-t border-gray-300 p-6 rounded-t-3xl" v-if="showFooter">
       <div class="flex items-center justify-between mb-4">
-        <button
-          @click="runSimulator"
-          :class="[
-            'px-4 py-2 text-lg font-semibold rounded transition-all duration-300',
-            isRunning ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-green-500 text-white hover:bg-green-600',
-            'disabled:opacity-50 disabled:cursor-not-allowed'
-          ]"
-          :disabled="loading"
-        >
-          {{ isRunning ? (currentIndex >= locations.length ? "Run Simulator" : "Pause Simulator") : "Run Simulator" }}
-        </button>
-
         <button
           @click="toggleRecording"
           class="relative group"
@@ -158,6 +141,7 @@ const { messages, isPaused } = store
 const fileInput = ref(null)
 const recording = ref(false)
 const showFooter = ref(false)
+// const simulatorRunning = ref(false)
 
 const { coords, resume, pause } = useGeolocation()
 
@@ -169,52 +153,64 @@ const loading = ref(false)
 const visitedPlaces = ref([])
 
 //for simulator
-const isRunning = ref(false)
-const currentIndex = ref(0)
-let intervalId = null
+// const isRunning = ref(false)
+// const currentIndex = ref(0)
+// let intervalId = null
 
 //simulator locations
-const locations = [
-  "1.2831,103.8431", // Chinatown Point
-  "1.2828,103.8442", // Maxwell Food Centre
-  "1.2823,103.8435", // Sago Street
-  "1.2798,103.8412", // Ann Siang Hill
-]
+// const locations = [
+//   "1.2831,103.8431", // Chinatown Point
+//   "1.2828,103.8442", // Maxwell Food Centre
+//   "1.2823,103.8435", // Sago Street
+//   "1.2798,103.8412", // Ann Siang Hill
+// ]
 
-const runSimulator = async () => {
-  if (isRunning.value) {
-    clearInterval(intervalId)
-    intervalId = null
-    isRunning.value = false
-    return
-  }
+// const startSimulator = () => {
+//   simulatorRunning.value = true
+//   showFooter.value = false
+//   runSimulator()
+// }
 
-  isRunning.value = true
+// const endSimulator = () => {
+//   simulatorRunning.value = false
+//   clearInterval(intervalId)
+//   currentIndex.value = 0
+// }
 
-  if (currentIndex.value < locations.length) {
-    const [latitude, longitude] = locations[currentIndex.value].split(",")
-    coords.value = { latitude, longitude }
-    console.log(`Sending simulated location (instant): ${locations[currentIndex.value]}`)
-    await sendLocation()
-    currentIndex.value += 1
-  }
+// const runSimulator = async () => {
+//   if (isRunning.value) {
+//     clearInterval(intervalId)
+//     intervalId = null
+//     isRunning.value = false
+//     return
+//   }
 
-  intervalId = setInterval(async () => {
-    if (currentIndex.value >= locations.length) {
-      clearInterval(intervalId)
-      intervalId = null
-      isRunning.value = false
-      currentIndex.value = 0
-      return
-    }
+//   isRunning.value = true
 
-    const [latitude, longitude] = locations[currentIndex.value].split(",")
-    coords.value = { latitude, longitude }
-    console.log(`Sending simulated location: ${locations[currentIndex.value]}`)
-    await sendLocation()
-    currentIndex.value += 1
-  }, 20000)
-}
+//   if (currentIndex.value < locations.length) {
+//     const [latitude, longitude] = locations[currentIndex.value].split(",")
+//     coords.value = { latitude, longitude }
+//     console.log(`Sending simulated location (instant): ${locations[currentIndex.value]}`)
+//     await sendLocation()
+//     currentIndex.value += 1
+//   }
+
+//   intervalId = setInterval(async () => {
+//     if (currentIndex.value >= locations.length) {
+//       clearInterval(intervalId)
+//       intervalId = null
+//       isRunning.value = false
+//       currentIndex.value = 0
+//       return
+//     }
+
+//     const [latitude, longitude] = locations[currentIndex.value].split(",")
+//     coords.value = { latitude, longitude }
+//     console.log(`Sending simulated location: ${locations[currentIndex.value]}`)
+//     await sendLocation()
+//     currentIndex.value += 1
+//   }, 20000)
+// }
 
 const sendLocation = async () => {
   loading.value = true
@@ -439,13 +435,11 @@ const sendMessage = async () => {
         },
         body: JSON.stringify(payload),
       })
-
+      
       if (!response.ok) {
         throw new Error('Failed to get response from backend')
       }
-
       const data = await response.json()
-
       // Process the response and update visitedPlaces
       console.log(data)
       store.addMessage({ text: data.response, isUser: false })
@@ -470,13 +464,11 @@ const getImageDescription = async (imageDataUrl, location) => {
   try {
     console.log(imageDataUrl);
     console.log(location)
-
     const payload = {
       image: imageDataUrl,
       location: location,
       visitedPlaces: visitedPlaces.value, 
     };
-
     const response = await fetch('https://ggdotcom.onrender.com/chat', {
       method: 'POST',
       headers: {
@@ -488,11 +480,8 @@ const getImageDescription = async (imageDataUrl, location) => {
     if (!response.ok) {
       throw new Error('Error sending image to backend');
     }
-
     const data = await response.json();
-
     console.log('Response from backend:', data);
-
     return data;
   } catch (error) {
     console.error('Error during image description fetch:', error);
@@ -501,12 +490,10 @@ const getImageDescription = async (imageDataUrl, location) => {
 };
 
 
-
 const onImageCapture = async (event) => {
   const file = event.target.files[0];
   if (file) {
     try {
-      // Compress the image before sending
       const options = {
         maxSizeMB: 0.75,
         maxWidthOrHeight: 1024,
@@ -533,11 +520,8 @@ const onImageCapture = async (event) => {
 
         try {
           const response = await getImageDescription(imageDataUrl, location);
-
           console.log('Backend response:', response);
-
           store.addMessage({ text: response.response, isUser: false });
-
           console.log(`response is ${response.response}`)
 
         } catch (error) {
@@ -559,48 +543,6 @@ const onImageCapture = async (event) => {
   }
 };
 
-
-
-// const togglePause = () => {
-//   store.setPaused(!isPaused)
-//   if (isPaused) {
-//     resume()
-//   } else {
-//     pause()
-//   }
-// }
-
-const speakText = (text) => {
-  stopSpeech()
-  utterance.value = new SpeechSynthesisUtterance(text)
-  synth.speak(utterance.value)
-}
-
-const stopSpeech = () => {
-  if (synth.speaking) {
-    synth.cancel()
-  }
-}
-
-const replayAudio = (text) => {
-  speakText(text)
-}
-
-// setInterval(async () => {
-//   if (!isPaused && coords.value) {
-//     store.setCurrentLocation({
-//       latitude: coords.value.latitude,
-//       longitude: coords.value.longitude,
-//     })
-//     try {
-//       const response = await getLocationDescription(coords.value.latitude, coords.value.longitude)
-//       store.addMessage({ text: response.message, isUser: false })
-//       speakText(response.message)
-//     } catch (error) {
-//       console.error("Error getting location description:", error)
-//     }
-//   }
-// }, 30000) 
 </script>
 
 <style scoped>
