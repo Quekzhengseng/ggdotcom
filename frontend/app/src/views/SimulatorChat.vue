@@ -66,7 +66,7 @@ const startSimulator = async () => {
       const [latitude, longitude] = loc.split(",");
       
       const payload = {
-      location: `${latitude},${longitude},`,
+      location: `${latitude},${longitude}`,
       visitedPlaces: visitedPlaces.value, 
     };
 
