@@ -182,12 +182,6 @@ onMounted(() => {
   visitedPlaces.value = storedPlaces
 })
 
-const updateVisitedPlaces = (newPlace) => {
-  if (!visitedPlaces.value.includes(newPlace)) {
-    visitedPlaces.value.push(newPlace)
-    sessionStorage.setItem('visitedPlaces', JSON.stringify(visitedPlaces.value))
-  }
-}
 
 onUnmounted(() => {
   pause()
@@ -256,7 +250,7 @@ const startAutoLocationDetection = () => {
       console.error('Error sending location:', error);
       store.addMessage({ text: 'Error sending location.', isUser: false });
     }
-  }, 60000); // Send location every 60 seconds
+  }, 150000); // Send location every 150 seconds
 };
 
 const stopAutoLocationDetection = () => {
@@ -462,9 +456,6 @@ const sendMessage = async () => {
       console.log(data)
       store.addMessage({ text: data.response, isUser: false })
 
-      if (data.location) {
-        updateVisitedPlaces(data.location) // Update visited places with new location
-      }
     } catch (error) {
       store.addMessage({ text: "Error getting response.", isUser: false })
       console.error("Error getting response:", error)
