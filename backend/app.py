@@ -520,7 +520,7 @@ def chat():
                 #Get by distance instead
                 places_result = gmap.places_nearby(
                     location=(lat, lng),
-                    rankby='distance',  # This will sort by distance automatically
+                    rank_by='distance',  # This will sort by distance automatically
                     type=['tourist_attraction', 'museum', 'art_gallery', 'park', 'shopping_mall', 
                         'hindu_temple', 'church', 'mosque', 'place_of_worship', 
                         'amusement_park', 'aquarium', 'zoo', 
