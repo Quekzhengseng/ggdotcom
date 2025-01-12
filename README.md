@@ -63,6 +63,6 @@ Future Improvements:
 - Authentication when in production
 
 Contributors:
-Quek Zheng Seng, Brejesh, Dwight
+Quek Zheng Seng, Brejesh, Dwight, Alyssa
 
 **Any questions regarding backend infrastructure or if the website is down, contact @quekkyz on telegram. Thank you.**
