@@ -1,9 +1,13 @@
 # ggdotcom
-The project consist of BACKEND and FRONTEND within the same git repo. Both are deployed online as of now.
+**File structure**
+The project consist of BACKEND and FRONTEND folder within the same git repo. Both are deployed online as of now.
 
 Accessing the app:
 Website can be https://ggdotcom.vercel.app , currently no login is required for ease of use and judging. 
-You will not be able to deploy this locally as all the APIs calls are made online through render. Please use the online website for judging.
+You will not be able to deploy the backend locally as all the APIs calls are made online through render. However, you will be able to run the frontend folder. Regardless, please use the online website for judging. 
+
+Frontend Setup Instructions:
+Clone frontend/app into a folder. In terminal, run npm i followed by npm run dev. A localhost of the website should then run.
 
 Instructions to note:
  - As there is no authentication, do run the website one person at a time due to database clashing.
@@ -53,5 +57,12 @@ Things to note regarding infrastructure:
 - There is currently no scalling or load balancing with free tier of render, multiple users on the app will cause some delay in response.
 - The team is currently using paid for OpenAI key, please use the app with discretion as we have only inputted 10 dollar in total.
 
+Future Improvements:
+- Shift to production based cloud platforms to allow for load balancing
+- Improved RAG documents to other parts of Singapore
+- Authentication when in production
+
+Contributors:
+Quek Zheng Seng, Brejesh, Dwight
 
 **Any questions regarding backend infrastructure or if the website is down, contact @quekkyz on telegram. Thank you.**
