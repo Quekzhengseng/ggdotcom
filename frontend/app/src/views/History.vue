@@ -1,4 +1,9 @@
 <template>
+      <header class="flex items-center justify-start bg-white p-4 shadow-md">
+      <router-link to="/" class="flex items-center text-red-600 hover:text-red-700 font-semibold text-lg">
+      ← back
+      </router-link>
+    </header>
   <div class="p-4">
     <h1 class="text-2xl font-bold mb-4">Tour History</h1>
     <div v-for="(tour, index) in tours" :key="index" class="mb-6">
