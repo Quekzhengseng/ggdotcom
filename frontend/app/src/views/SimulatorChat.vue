@@ -46,8 +46,11 @@ const visitedPlaces = ref([]);
 
 
 const locations = [
-  "1.2831,103.8431", // Chinatown Point
-  "1.2828,103.8442", // Maxwell Food Centre
+'1.282542, 103.845410',
+'1.281293, 103.844640',
+'1.280921, 103.846269',
+'1.281072, 103.847809',
+'1.280181, 103.850140',
 ];
 
 // Flag to manage simulator state
@@ -61,7 +64,11 @@ const startSimulator = async () => {
       if (!simulatorRunning) break; // Stop if simulator is no longer running
 
       const [latitude, longitude] = loc.split(",");
-      const payload = { location: `${latitude},${longitude}` };
+      
+      const payload = {
+      location: `${latitude},${longitude},`,
+      visitedPlaces: visitedPlaces.value, 
+    };
 
       console.log(`Sending location: ${loc}`);
 
