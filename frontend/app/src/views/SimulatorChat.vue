@@ -1,20 +1,16 @@
 <template>
   <div class="flex flex-col h-screen bg-white">
-    <header
-      class="flex flex-col items-center justify-between bg-white p-4 shadow-md"
-    >
+    <header class="flex flex-col items-center justify-between bg-white p-4 shadow-md">
       <div class="flex items-center justify-between w-full">
-        <router-link
-          to="/"
-          class="flex items-center text-red-600 hover:text-red-700 font-semibold text-lg"
-        >
+        <router-link to="/" class="flex items-center text-red-600 hover:text-red-700 font-semibold text-lg">
           ← back
         </router-link>
-        <p class="text-lg font-medium text-gray-800">Simulator</p>
+        <p class="text-lg font-medium text-gray-800">
+          <span v-if="loading">Simulator</span>
+          <span v-else>Simulator Completed</span>
+        </p>
         <div v-if="loading" class="flex items-center justify-center">
-          <div
-            class="animate-spin w-6 h-6 border-4 border-red-600 border-t-transparent rounded-full"
-          ></div>
+          <div class="animate-spin w-6 h-6 border-4 border-red-600 border-t-transparent rounded-full"></div>
         </div>
       </div>
       <div class="mt-2 text-center text-sm text-gray-600">
@@ -23,31 +19,18 @@
     </header>
 
     <main class="flex-grow overflow-y-auto p-6 space-y-6">
-      <div class="text-center text-gray-800 space-y-4"></div>
-
-      <div
-        v-for="(message, index) in messages"
-        :key="index"
-        class="animate-fade-in-up"
-      >
-        <div
-          :class="[
-            'rounded-xl max-w-4/5 shadow-lg p-4',
-            message.isUser
-              ? 'bg-gray-100 text-gray-800 ml-auto'
-              : 'bg-red-50 text-gray-800',
-          ]"
-        >
-          <span v-if="message.text" class="block break-words">{{
-            message.text
-          }}</span>
-          <img
-            v-if="message.image"
-            :src="message.image"
-            class="max-w-full rounded-lg"
-            alt="User shared image"
+      <div v-for="(message, index) in messages" :key="index" class="animate-fade-in-up">
+        <div :class="[
+          'rounded-xl max-w-4/5 shadow-lg p-4',
+          message.isUser ? 'bg-gray-100 text-gray-800 ml-auto' : 'bg-red-50 text-gray-800',
+        ]">
+          <span v-if="message.text" class="block break-words">{{ message.text }}</span>
+          <img v-if="message.image" :src="message.image" class="max-w-full rounded-lg" alt="User shared image" />
+          <AudioPlayer 
+            v-if="!message.isUser" 
+            :text="message.text || ''" 
+            :autoplay="message.isEnding"
           />
-          <AudioPlayer v-if="!message.isUser" :text="message.text || ''" />
         </div>
       </div>
     </main>
@@ -69,11 +52,11 @@ const visitedPlaces = ref([]);
 const locations = [
   "1.282542, 103.845410",
   "1.281293, 103.844640",
-  // '1.280921, 103.846269',
 ];
 
-// Flag to manage simulator state
 let simulatorRunning = false;
+
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const sendMessage = async (payload) => {
   const response = await fetch("https://ggdotcom.onrender.com/chat", {
@@ -111,9 +94,6 @@ const convertImageToBase64 = async (imagePath) => {
 
 const getImageDescription = async (imageDataUrl, location) => {
   try {
-    console.log("Sending image data:", imageDataUrl.substring(0, 100) + "...");
-    console.log("Location:", location);
-
     const payload = {
       image: imageDataUrl,
       location: location,
@@ -133,7 +113,6 @@ const getImageDescription = async (imageDataUrl, location) => {
     }
 
     const data = await response.json();
-    console.log("Response from backend:", data);
     return data;
   } catch (error) {
     console.error("Error during image description fetch:", error);
@@ -156,39 +135,35 @@ const startSimulator = async () => {
         visitedPlaces: visitedPlaces.value,
       };
 
-      console.log(`Sending location: ${loc}`);
-
       const data = await sendMessage(payload);
-      console.log(`Response for ${loc}:`, data);
       visitedPlaces.value.push(data.visitedPlace);
-      console.log(`visited places are ${visitedPlaces.value}`);
-
       messages.value.push({ text: data.response, isUser: false });
 
       if (i === 0) {
-        const historicalQuestion =
-          "What is the historical significance of this place I am in?";
+        await delay(70000);
+        const historicalQuestion = "What is the historical significance of this place I am in?";
         messages.value.push({ text: historicalQuestion, isUser: true });
       }
 
       if (i === 1) {
+        await delay(73000);
         try {
-          // Convert the image to base64
           const imageDataUrl = await convertImageToBase64(lauPaSatImage);
 
-          // Add the image to messages
           messages.value.push({
             text: "Image captured",
             image: imageDataUrl,
             isUser: true,
           });
 
-          // Get image description from backend
           const imageResponse = await getImageDescription(
             imageDataUrl,
             `1.2805288120280371, 103.85038526703941`
           );
           messages.value.push({ text: imageResponse.response, isUser: false });
+
+          // Add delay to simulate processing
+          await delay(10000);
         } catch (error) {
           console.error("Error processing image:", error);
           messages.value.push({
@@ -198,15 +173,19 @@ const startSimulator = async () => {
         }
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 100000)); // Simulate delay
+      if (i < locations.length - 1) {
+        await delay(10000);
+      }
     }
 
-    // Show "Simulator ended" message after all locations are sent
+    // Ensure ending message is added only after all tasks are done
+    // messages.value.push({
+    //   text: "Simulator ended. Hope you enjoyed your trip to Chinatown!",
+    //   isUser: false,
+    //   isEnding: true, // Use this flag if special handling is needed (e.g., autoplay audio)
+    // });
+
     simulatorRunning = false;
-    messages.value.push({
-      text: "Simulator ended. Hope you enjoyed your trip to Chinatown!",
-      isUser: false,
-    });
   } catch (error) {
     console.error("Simulation error:", error);
     messages.value.push({ text: "Error in simulation.", isUser: false });
@@ -215,10 +194,10 @@ const startSimulator = async () => {
   }
 };
 
-// Stop the simulation when the component is unmounted or when the user navigates away
+
 onBeforeUnmount(() => {
   simulatorRunning = false;
-  loading.value = false; // Stop loading animation if still running
+  loading.value = false;
 });
 
 onMounted(() => {
