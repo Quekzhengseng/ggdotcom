@@ -1,113 +1,129 @@
-# RAG.py
-from flask import Flask, request, jsonify
-from flask_cors import CORS
 import chromadb
-from datetime import datetime, timedelta
-from collections import defaultdict
-import sys
 import os
-import json
-from typing import Dict, List
-from utils.firebase_backup import FirebaseBackup
+import sys
+import logging
+from typing import Dict, List, Optional
+from difflib import SequenceMatcher
+from flask import Flask, request, jsonify, send_file
+from flask_cors import CORS
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-from backend.config import get_chroma_settings, get_firebase_backup
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from config import get_chroma_settings
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+def similar(a: str, b: str) -> float:
+    """Calculate string similarity ratio"""
+    a = a.lower().strip()
+    b = b.lower().strip()
+    return SequenceMatcher(None, a, b).ratio()
 
 class RAGManager:
     def __init__(self):
         settings = get_chroma_settings()
-        self.client = chromadb.HttpClient(
-            host=settings["chroma_host"],
-            port=settings["chroma_port"],
-            ssl=settings["chroma_ssl"],
-            headers={"X-Api-Key": settings["chroma_api_key"]} if settings["chroma_api_key"] else None
+        self.db_path = settings["persist_directory"]
+        logging.info(f"Initializing local ChromaDB at: {self.db_path}")
+        
+        self.client = chromadb.PersistentClient(
+            path=self.db_path
         )
-        self.collections = {}
-        self.firebase_backup = FirebaseBackup(settings["firebase_backup"]["bucket_name"])
-        self.collection_id = None  # Will store the active collection ID
-        self.initialize_collections()
-
-    def initialize_collections(self):
-        """Initialize by finding available collections in Firebase"""
+        
         try:
-            # First try to get collection from ChromaDB
-            self.collections["wikipedia"] = self.client.get_collection("wikipedia_collection")
-            print("Successfully initialized ChromaDB collection")
+            self.wikipedia_collection = self.client.get_collection("wikipedia_collection")
+            logging.info("Successfully connected to wikipedia_collection")
+            # Get all metadata to use for matching
+            self.all_metadata = self.wikipedia_collection.get()['metadatas']
+            self.all_names = [meta.get('name', '').lower() for meta in self.all_metadata]
+            logging.info(f"Loaded {len(self.all_names)} place names")
         except Exception as e:
-            print(f"ChromaDB collection error: {str(e)}")
-            print("Attempting to restore from Firebase backup...")
-            
-            # List available collections in Firebase
-            available_collections = self.firebase_backup.list_firebase_collections()
-            print("Available collections in Firebase:", available_collections)
-            
-            if available_collections:
-                # Use the first available collection
-                self.collection_id = available_collections[0]
-                print(f"Using collection ID: {self.collection_id}")
-            else:
-                print("No collections found in Firebase")
-                self.collection_id = None
+            logging.error(f"Error accessing wikipedia collection: {str(e)}")
+            self.wikipedia_collection = None
+            self.all_metadata = []
+            self.all_names = []
 
-    def query_place(self, place_name: str, limit: int = 3, similarity_threshold: float = 0.5) -> dict:
-        """Query collections and penalize irrelevant results based on similarity score."""
-        results = {}
+    @property
+    def collections(self) -> List[str]:
+        return ["wikipedia_collection", "singapore_attractions"]
 
-        if not self.collection_id:
-            print("No valid collection ID available")
+    def find_best_matching_place(self, text: str) -> Optional[str]:
+        """Find the best matching place name from our collection"""
+        text = text.lower()
+        best_match = None
+        best_score = 0.3  # Minimum threshold
+        
+        # Extract key parts from the input
+        parts = [p.strip() for p in text.split(',')[0].split()]
+        
+        for name in self.all_names:
+            # Try exact matches first
+            if name in text or text in name:
+                return name
+            
+            # Try partial matches
+            for part in parts:
+                if len(part) > 3:  # Only check substantial words
+                    score = similar(part, name)
+                    if score > best_score:
+                        best_score = score
+                        best_match = name
+        
+        return best_match
+
+    def format_document_for_response(self, document: str, metadata: Dict) -> str:
+        """Format document content for response"""
+        sections = document.split('\n\n')
+        relevant_info = []
+        
+        for section in sections:
+            if section.startswith("Summary:"):
+                relevant_info.append(section.replace("Summary:", "").strip())
+            elif section.startswith("History:") and len(section) > 10:
+                relevant_info.append(section.replace("History:", "").strip())
+            elif section.startswith("Description:") and len(section) > 10:
+                relevant_info.append(section.replace("Description:", "").strip())
+        
+        return " ".join(relevant_info) if relevant_info else document
+
+    def query_place(self, input_text: str, limit: int = 3) -> Dict[str, List[str]]:
+        """Query function with improved place matching"""
+        results = {"wikipedia": []}
+        
+        if not self.wikipedia_collection:
             return results
 
         try:
-            # Get data directly from Firebase backup
-            collection_data = self.firebase_backup.get_collection_details(self.collection_id)
+            # Find best matching place name
+            place_name = self.find_best_matching_place(input_text)
+            logging.info(f"Best matching place: {place_name}")
             
-            if collection_data and 'documents' in collection_data and collection_data['documents']:
-                documents = collection_data['documents']
-                print(f"Found {len(documents['documents'])} documents in collection")
+            if place_name:
+                # Query using the matched place name
+                query_results = self.wikipedia_collection.query(
+                    query_texts=[place_name],
+                    n_results=limit,
+                    include=["documents", "metadatas"]
+                )
                 
-                # Get the documents, distances (scores), and metadata
-                matched_docs = []
-                matched_scores = []
-                matched_metadata = []
-                
-                for i, doc in enumerate(documents['documents']):
-                    # Check if the document contains the place name
-                    if place_name.lower() in doc.lower():
-                        matched_docs.append(doc)
-                        # Use metadata confidence if available
-                        confidence = documents['metadatas'][i].get('confidence', 1.0) if documents.get('metadatas') else 1.0
-                        matched_scores.append(confidence)
-                        matched_metadata.append(documents['metadatas'][i] if documents.get('metadatas') else {})
-                
-                # Filter and sort results
-                filtered_results = []
-                for doc, score, metadata in zip(matched_docs, matched_scores, matched_metadata):
-                    if score >= similarity_threshold:
-                        if metadata.get("confidence", 1.0) < 0.5:
-                            score *= 0.5  # Apply penalty for low confidence
-                        filtered_results.append((doc, score))
-
-                # Sort by score and take top results
-                if filtered_results:
-                    sorted_results = sorted(filtered_results, key=lambda x: x[1], reverse=True)
-                    results["wikipedia"] = [doc for doc, _ in sorted_results[:limit]]
-                else:
-                    print("No matching documents found after filtering")
-                    results["wikipedia"] = []
-            else:
-                print("No documents found in collection data")
-                print(f"Collection data keys: {collection_data.keys() if collection_data else None}")
-                results["wikipedia"] = []
+                if query_results and 'documents' in query_results:
+                    documents = query_results['documents'][0]
+                    metadatas = query_results['metadatas'][0]
+                    
+                    for doc, metadata in zip(documents, metadatas):
+                        formatted_doc = self.format_document_for_response(doc, metadata)
+                        if formatted_doc:
+                            results["wikipedia"].append(formatted_doc)
+            
+            logging.info(f"Found {len(results['wikipedia'])} relevant results")
 
         except Exception as e:
-            print(f"Error querying collection: {str(e)}")
-            results["wikipedia"] = []
+            logging.error(f"Error during query: {str(e)}")
 
         return results
+
 # Create a single instance to be imported
 rag_manager = RAGManager()
 
-# Only run Flask app if this file is run directly
+# Flask app setup
 if __name__ == '__main__':
     app = Flask(__name__)
     CORS(app)
@@ -116,7 +132,6 @@ if __name__ == '__main__':
     @app.route('/chromadb<path:path>', methods=['HEAD'])
     def ping(path):
         try:
-            # Check ChromaDB connectivity
             rag_manager.client.heartbeat()
             return '', 200
         except Exception as e:

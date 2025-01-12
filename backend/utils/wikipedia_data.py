@@ -34,20 +34,21 @@ def similar(a: str, b: str) -> float:
 class WikipediaDataCollector:
     def __init__(self, attractions_array: dict):
         settings = get_chroma_settings()
-        self.chroma_client = chromadb.HttpClient(
-            host=settings["chroma_host"],
-            port=settings["chroma_port"],
-            ssl=settings["chroma_ssl"],
-            headers={"X-Api-Key": settings["chroma_api_key"]} if settings["chroma_api_key"] else None
+        
+        # Initialize the local ChromaDB client
+        self.chroma_client = chromadb.PersistentClient(
+            path=settings["persist_directory"]
         )
+        
+        # Initialize the embedding function
         self.embedding_function = embedding_functions.DefaultEmbeddingFunction()
 
         # Delete existing collections if they exist
-        try:
-            self.chroma_client.delete_collection("wikipedia_collection")
-            self.chroma_client.delete_collection("singapore_attractions")
-        except Exception:
-            pass  # Collections might not exist, that's okay
+        for collection_name in ["wikipedia_collection", "singapore_attractions"]:
+            try:
+                self.chroma_client.delete_collection(collection_name)
+            except Exception:
+                pass  # Collections might not exist, that's okay
 
         # Create collections
         try:
@@ -66,7 +67,6 @@ class WikipediaDataCollector:
         except Exception as e:
             logging.error(f"Error creating collections: {str(e)}")
             raise
-
 
         # Initialize other necessary components
         self.wiki = wikipediaapi.Wikipedia(
