@@ -28,30 +28,29 @@
         </div>
       </div>
       <div v-for="(message, index) in messages" :key="index" class="animate-fade-in-up">
-        <div
-          :class="[
-            'p-4 rounded-xl max-w-4/5 shadow-lg flex items-center justify-between',
-            message.isUser ? 'bg-gray-100 text-gray-800 ml-auto' : 'bg-red-50 text-gray-800',
-          ]"
-        >
-          <span>{{ message.text }}</span>
-          <button
-            v-if="!message.isUser"
-            @click="replayAudio(message.text)"
-            class="ml-2 p-2 rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors duration-300"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
-            </svg>
-          </button>
+    <div
+      :class="[
+        'rounded-xl max-w-4/5 shadow-lg',
+        message.isUser ? 'bg-gray-100 text-gray-800 ml-auto' : 'bg-red-50 text-gray-800',
+      ]"
+    >
+      <div class="p-4">
+        <span class="block break-words">{{ message.text }}</span>
+        <div v-if="!message.isUser" class="mt-3 pt-3 border-t border-gray-200">
+          <AudioPlayer 
+            :text="message.text"
+          />
         </div>
-        <img
-          v-if="message.image"
-          :src="message.image"
-          alt="Captured image"
-          class="mt-3 max-w-full h-auto rounded-xl shadow-md"
-        />
       </div>
+    </div>
+    
+    <img
+      v-if="message.image"
+      :src="message.image"
+      alt="Captured image"
+      class="mt-3 max-w-full h-auto rounded-xl shadow-md"
+    />
+  </div>
     </main>
 
     <footer class="bg-white border-t border-gray-300 p-6 rounded-t-3xl" v-if="showFooter">
@@ -151,7 +150,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useAppStore } from '../store'
 import { useGeolocation } from '@vueuse/core'
 import imageCompression from 'browser-image-compression'
-
+import AudioPlayer from '../components/AudioPlayer.vue'
 
 const store = useAppStore()
 const userInput = ref('')
@@ -160,23 +159,19 @@ const fileInput = ref(null)
 const recording = ref(false)
 const showFooter = ref(false)
 
-
 const { coords, resume, pause } = useGeolocation()
 
 const recognition = ref(null)
 const isRecognitionSupported = ref(false)
-const synth = window.speechSynthesis
-const utterance = ref(null)
 const loading = ref(false)
-
 
 //for visited places 
 const visitedPlaces = ref([])
 
 //for simulator
-const isRunning = ref(false); // Tracks whether the simulation is running
-const currentIndex = ref(0); // Tracks the current location index
-let intervalId = null; // Holds the interval ID
+const isRunning = ref(false)
+const currentIndex = ref(0)
+let intervalId = null
 
 //simulator locations
 const locations = [
@@ -184,61 +179,55 @@ const locations = [
   "1.2828,103.8442", // Maxwell Food Centre
   "1.2823,103.8435", // Sago Street
   "1.2798,103.8412", // Ann Siang Hill
-];
+]
 
 const runSimulator = async () => {
   if (isRunning.value) {
-    // Pause simulation
-    clearInterval(intervalId);
-    intervalId = null;
-    isRunning.value = false;
-    return;
+    clearInterval(intervalId)
+    intervalId = null
+    isRunning.value = false
+    return
   }
 
-  // Start simulation
-  isRunning.value = true;
+  isRunning.value = true
 
-  // Send the first location instantly
   if (currentIndex.value < locations.length) {
-    const [latitude, longitude] = locations[currentIndex.value].split(",");
-    coords.value = { latitude, longitude }; // Simulate location change
-    console.log(`Sending simulated location (instant): ${locations[currentIndex.value]}`);
-    await sendLocation();
-    currentIndex.value += 1; // Move to the next location
+    const [latitude, longitude] = locations[currentIndex.value].split(",")
+    coords.value = { latitude, longitude }
+    console.log(`Sending simulated location (instant): ${locations[currentIndex.value]}`)
+    await sendLocation()
+    currentIndex.value += 1
   }
 
-  // Start the interval for subsequent locations
   intervalId = setInterval(async () => {
     if (currentIndex.value >= locations.length) {
-      // Stop the simulation when all locations are sent
-      clearInterval(intervalId);
-      intervalId = null;
-      isRunning.value = false;
-      currentIndex.value = 0; // Reset the index
-      return;
+      clearInterval(intervalId)
+      intervalId = null
+      isRunning.value = false
+      currentIndex.value = 0
+      return
     }
 
-    const [latitude, longitude] = locations[currentIndex.value].split(",");
-    coords.value = { latitude, longitude }; // Simulate location change
-    console.log(`Sending simulated location: ${locations[currentIndex.value]}`);
-    await sendLocation();
-    currentIndex.value += 1; // Move to the next location
-  }, 20000); // 20-second interval
-};
-
+    const [latitude, longitude] = locations[currentIndex.value].split(",")
+    coords.value = { latitude, longitude }
+    console.log(`Sending simulated location: ${locations[currentIndex.value]}`)
+    await sendLocation()
+    currentIndex.value += 1
+  }, 20000)
+}
 
 const sendLocation = async () => {
-  loading.value = true; 
+  loading.value = true
   try {
-    const latitude = coords.value.latitude;
-    const longitude = coords.value.longitude;
-    const location = `${latitude},${longitude}`;
+    const latitude = coords.value.latitude
+    const longitude = coords.value.longitude
+    const location = `${latitude},${longitude}`
 
-    console.log(`Sending location: ${location}`);
+    console.log(`Sending location: ${location}`)
     const payload = {
       location,
       visitedPlaces: visitedPlaces.value,
-    };
+    }
     
     const response = await fetch('https://ggdotcom.onrender.com/chat', {
       method: 'POST',
@@ -246,62 +235,52 @@ const sendLocation = async () => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
-    });
+    })
 
     if (!response.ok) {
-      throw new Error('Failed to send location to backend');
+      throw new Error('Failed to send location to backend')
     }
 
-    const data = await response.json();
-    console.log("Location response:", data);
+    const data = await response.json()
+    console.log("Location response:", data)
 
-    // Append the visited place to the visitedPlaces array
-    visitedPlaces.value.push(data.visitedPlace);
-
-    // Display the AI's response in the chat
-    store.addMessage({ text: data.response, isUser: false });
-
-    // Optionally use text-to-speech to read out the response
-    speakText(data.response);
+    visitedPlaces.value.push(data.visitedPlace)
+    store.addMessage({ text: data.response, isUser: false })
 
   } catch (error) {
-    console.error("Error sending location:", error);
-    store.addMessage({ text: "Error sending location.", isUser: false });
+    console.error("Error sending location:", error)
+    store.addMessage({ text: "Error sending location.", isUser: false })
   } finally {
-    loading.value = false; // Set loading to false
+    loading.value = false
   }
-};
+}
 
 onMounted(() => {
-  resume();
-  checkSpeechRecognitionSupport();
+  resume()
+  checkSpeechRecognitionSupport()
 
-  // Ensure the footer is visible when the component is mounted
   if (messages.length > 0) {
-    showFooter.value = true;
+    showFooter.value = true
   }
 
-  const storedPlaces = JSON.parse(sessionStorage.getItem('visitedPlaces')) || [];
-  visitedPlaces.value = storedPlaces;
-});
-
+  const storedPlaces = JSON.parse(sessionStorage.getItem('visitedPlaces')) || []
+  visitedPlaces.value = storedPlaces
+})
 
 const updateVisitedPlaces = (newPlace) => {
   if (!visitedPlaces.value.includes(newPlace)) {
-    visitedPlaces.value.push(newPlace) // Update the reactive array
-    sessionStorage.setItem('visitedPlaces', JSON.stringify(visitedPlaces.value)) // Save to sessionStorage
+    visitedPlaces.value.push(newPlace)
+    sessionStorage.setItem('visitedPlaces', JSON.stringify(visitedPlaces.value))
   }
 }
 
 onUnmounted(() => {
   pause()
   stopRecognition()
-  stopSpeech()
 })
 
-//send initial location on begin tour
 const beginTour = async () => {
-  loading.value = true;  // Set loading to true
+  loading.value = true
   try {
     const latitude = coords.value.latitude
     const longitude = coords.value.longitude
@@ -328,18 +307,17 @@ const beginTour = async () => {
     console.log(data)
 
     visitedPlaces.value.push(data.visitedPlace)
-
     store.addMessage({ text: data.response, isUser: false })
-    speakText(data.response)
-    showFooter.value = true;
+    showFooter.value = true
 
   } catch (error) {
     store.addMessage({ text: "Error starting tour.", isUser: false })
     console.error("Error starting tour:", error)
   } finally {
-    loading.value = false;  // Set loading to false when done
+    loading.value = false
   }
 }
+
 
 const checkSpeechRecognitionSupport = () => {
   if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
@@ -387,7 +365,6 @@ const checkSpeechRecognitionSupport = () => {
 
           const data = await response.json()
           store.addMessage({ text: data.response, isUser: false })
-          speakText(data.response)
 
         } catch (error) {
           store.addMessage({ text: "Error getting response.", isUser: false })
@@ -472,7 +449,6 @@ const sendMessage = async () => {
       // Process the response and update visitedPlaces
       console.log(data)
       store.addMessage({ text: data.response, isUser: false })
-      speakText(data.response)
 
       if (data.location) {
         updateVisitedPlaces(data.location) // Update visited places with new location
@@ -564,7 +540,6 @@ const onImageCapture = async (event) => {
 
           console.log(`response is ${response.response}`)
 
-          speakText(response.response);
         } catch (error) {
           store.addMessage({ text: "Error processing image.", isUser: false });
           console.error("Image processing error:", error);
