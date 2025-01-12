@@ -2,7 +2,7 @@
   <div class="flex flex-col items-center justify-center min-h-screen p-4">
     <h1 class="text-4xl font-bold mb-8">SG Buddy</h1>
     <router-link
-      to="/chat"
+      to="/selection"
       class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded mb-4"
     >
       AI Tour Guide
