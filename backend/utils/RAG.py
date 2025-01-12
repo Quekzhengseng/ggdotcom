@@ -28,100 +28,210 @@ class RAGManager:
             path=self.db_path
         )
         
+        # Initialize collections
+        self.collections = {
+            "wikipedia_collection": None,
+            "singapore_attractions": None
+        }
+        
         try:
-            self.wikipedia_collection = self.client.get_collection("wikipedia_collection")
-            logging.info("Successfully connected to wikipedia_collection")
-            # Get all metadata to use for matching
-            self.all_metadata = self.wikipedia_collection.get()['metadatas']
-            self.all_names = [meta.get('name', '').lower() for meta in self.all_metadata]
-            logging.info(f"Loaded {len(self.all_names)} place names")
-        except Exception as e:
-            logging.error(f"Error accessing wikipedia collection: {str(e)}")
-            self.wikipedia_collection = None
-            self.all_metadata = []
-            self.all_names = []
-
-    @property
-    def collections(self) -> List[str]:
-        return ["wikipedia_collection", "singapore_attractions"]
-
-    def find_best_matching_place(self, text: str) -> Optional[str]:
-        """Find the best matching place name from our collection"""
-        text = text.lower()
-        best_match = None
-        best_score = 0.3  # Minimum threshold
-        
-        # Extract key parts from the input
-        parts = [p.strip() for p in text.split(',')[0].split()]
-        
-        for name in self.all_names:
-            # Try exact matches first
-            if name in text or text in name:
-                return name
+            # Load the collections
+            for collection_name in self.collections:
+                self.collections[collection_name] = self.client.get_collection(collection_name)
+                logging.info(f"Successfully connected to {collection_name}")
             
-            # Try partial matches
-            for part in parts:
-                if len(part) > 3:  # Only check substantial words
-                    score = similar(part, name)
-                    if score > best_score:
-                        best_score = score
-                        best_match = name
+            # Load document content
+            self.all_metadata = {}
+            self.all_documents = {}
+            
+            for collection_name, collection in self.collections.items():
+                if collection:
+                    collection_data = collection.get()
+                    self.all_metadata[collection_name] = collection_data['metadatas']
+                    self.all_documents[collection_name] = collection_data['documents']
+                    logging.info(f"Loaded {len(self.all_documents[collection_name])} documents from {collection_name}")
         
-        return best_match
+        except Exception as e:
+            logging.error(f"Error initializing RAGManager: {str(e)}")
+            raise
+
+    def extract_key_terms(self, query_text: str, location: str = None, address: str = None) -> List[str]:
+        """Extract meaningful terms from the query and location"""
+        # Minimal stop words to preserve most meaningful terms
+        stop_words = {'a', 'an', 'the', 'tell', 'me', 'about'}
+        
+        terms = []
+        
+        # Process query text first
+        if query_text:
+            # Clean and split query
+            query_words = query_text.lower().strip().split()
+            
+            # Extract terms from query text
+            i = 0
+            while i < len(query_words):
+                # Try 3-word phrases
+                if i + 2 < len(query_words):
+                    phrase = ' '.join(query_words[i:i+3])
+                    if not any(word in stop_words for word in phrase.split()):
+                        terms.append(phrase)
+                
+                # Try 2-word phrases
+                if i + 1 < len(query_words):
+                    phrase = ' '.join(query_words[i:i+2])
+                    if not any(word in stop_words for word in phrase.split()):
+                        terms.append(phrase)
+                
+                # Add individual words
+                if query_words[i] not in stop_words:
+                    terms.append(query_words[i])
+                
+                i += 1
+        
+        # Process location if provided
+        if location:
+            location_terms = location.lower().split(',')
+            terms.extend([term.strip() for term in location_terms if term.strip()])
+            
+        # Process address if provided
+        if address:
+            address_parts = address.lower().split()
+            # Keep important address parts
+            terms.extend([part.strip('.,') for part in address_parts 
+                        if part not in {'street', 'road', 'avenue', 'singapore'} 
+                        and not part.isdigit()])
+        
+        # Remove duplicates while preserving order
+        unique_terms = []
+        seen = set()
+        for term in terms:
+            if term not in seen and len(term) > 1:  # Only keep terms longer than 1 character
+                unique_terms.append(term)
+                seen.add(term)
+        
+        logging.info(f"Extracted terms from query '{query_text}': {unique_terms}")
+        return unique_terms
 
     def format_document_for_response(self, document: str, metadata: Dict) -> str:
         """Format document content for response"""
-        sections = document.split('\n\n')
-        relevant_info = []
+        # For Wikipedia content with sections
+        if document.startswith("Summary:") or "History:" in document or "Description:" in document:
+            sections = document.split('\n\n')
+            relevant_info = []
+            
+            for section in sections:
+                if any(section.startswith(prefix) for prefix in ["Summary:", "History:", "Description:"]):
+                    cleaned_section = section.split(':', 1)[1].strip() if ':' in section else section
+                    relevant_info.append(cleaned_section)
+            
+            return " ".join(relevant_info) if relevant_info else document
         
-        for section in sections:
-            if section.startswith("Summary:"):
-                relevant_info.append(section.replace("Summary:", "").strip())
-            elif section.startswith("History:") and len(section) > 10:
-                relevant_info.append(section.replace("History:", "").strip())
-            elif section.startswith("Description:") and len(section) > 10:
-                relevant_info.append(section.replace("Description:", "").strip())
-        
-        return " ".join(relevant_info) if relevant_info else document
+        # For scraped content
+        return document.strip()
 
-    def query_place(self, input_text: str, limit: int = 3) -> Dict[str, List[str]]:
-        """Query function with improved place matching"""
-        results = {"wikipedia": []}
+    def query_place(self, query_text: str, location: str = None, address: str = None, limit: int = 3):
+        results = {"wikipedia": [], "singapore_attractions": []}
         
-        if not self.wikipedia_collection:
-            return results
-
         try:
-            # Find best matching place name
-            place_name = self.find_best_matching_place(input_text)
-            logging.info(f"Best matching place: {place_name}")
+            # Get search terms
+            search_terms = self.extract_key_terms(query_text, location, address)
+            logging.info(f"Searching with terms: {search_terms}")
             
-            if place_name:
-                # Query using the matched place name
-                query_results = self.wikipedia_collection.query(
-                    query_texts=[place_name],
-                    n_results=limit,
-                    include=["documents", "metadatas"]
-                )
-                
-                if query_results and 'documents' in query_results:
-                    documents = query_results['documents'][0]
-                    metadatas = query_results['metadatas'][0]
+            # Search each collection
+            for collection_name, collection in self.collections.items():
+                if collection:
+                    try:
+                        # Do semantic search with both query and location
+                        search_queries = [
+                            query_text,  # Original query
+                            " ".join(search_terms[:3])  # First few key terms
+                        ]
+                        
+                        for search_query in search_queries:
+                            query_results = collection.query(
+                                query_texts=[search_query],
+                                n_results=limit,
+                                include=["documents", "metadatas"]
+                            )
+                            
+                            if query_results and query_results['documents']:
+                                documents = query_results['documents'][0]
+                                metadatas = query_results['metadatas'][0]
+                                
+                                # Score and filter results
+                                scored_results = []
+                                for doc, metadata in zip(documents, metadatas):
+                                    doc_lower = doc.lower()
+                                    matches = 0
+                                    
+                                    # Count matches for each term
+                                    for term in search_terms:
+                                        if term in doc_lower:
+                                            # Weight longer phrases higher
+                                            term_words = len(term.split())
+                                            matches += term_words  # More weight for longer matches
+                                            logging.info(f"Found term '{term}' in document")
+                                    
+                                    if matches > 0:
+                                        scored_results.append((matches, doc, metadata))
+                                
+                                # Add unique results
+                                mapped_name = "wikipedia" if collection_name == "wikipedia_collection" else "singapore_attractions"
+                                
+                                for matches, doc, metadata in scored_results:
+                                    formatted_doc = self.format_document_for_response(doc, metadata)
+                                    if formatted_doc and formatted_doc not in results[mapped_name]:
+                                        results[mapped_name].append(formatted_doc)
+                                        logging.info(f"Adding document with {matches} matches to {mapped_name}")
+                                        if len(results[mapped_name]) >= limit:
+                                            break
                     
-                    for doc, metadata in zip(documents, metadatas):
-                        formatted_doc = self.format_document_for_response(doc, metadata)
-                        if formatted_doc:
-                            results["wikipedia"].append(formatted_doc)
+                    except Exception as e:
+                        logging.error(f"Error querying collection {collection_name}: {str(e)}")
+                        continue
             
-            logging.info(f"Found {len(results['wikipedia'])} relevant results")
-
+            return results
+            
         except Exception as e:
             logging.error(f"Error during query: {str(e)}")
+            return results
 
-        return results
+    def score_document(self, doc: str, metadata: Dict, query: str, search_terms: List[str]) -> float:
+        """Score document relevance with more detailed matching"""
+        score = 0.0
+        doc_lower = doc.lower()
+        query_lower = query.lower()
+        
+        # Log document being scored
+        logging.info(f"Scoring document: {doc[:100]}...")
 
-# Create a single instance to be imported
+        # Score exact phrase matches from the query
+        if query_lower in doc_lower:
+            score += 2.0
+            logging.info(f"Exact query match found: +2.0")
+        
+        # Score individual term matches
+        for term in search_terms:
+            if term in doc_lower:
+                # Weight longer terms (likely phrases) higher
+                term_score = 0.3 * len(term.split())
+                score += term_score
+                logging.info(f"Term '{term}' found: +{term_score}")
+        
+        # Score metadata matches
+        if metadata:
+            if metadata.get('name', '').lower() in query_lower:
+                score += 1.0
+                logging.info("Metadata name match: +1.0")
+            if metadata.get('attraction_type', '').lower() in query_lower:
+                score += 0.5
+                logging.info("Metadata type match: +0.5")
+        
+        logging.info(f"Final document score: {score}")
+        return score
+
 rag_manager = RAGManager()
+
 
 # Flask app setup
 if __name__ == '__main__':
