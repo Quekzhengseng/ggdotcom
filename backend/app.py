@@ -1,9 +1,10 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import openai
 from firebase_admin import credentials, firestore, initialize_app
 from datetime import datetime
 import uuid
+import io
 import os
 import logging
 import googlemaps
@@ -796,6 +797,37 @@ def test():
         logging.error("Error in /test endpoint", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
+@app.route('/audio', methods = ['POST'])
+def audio():
+    try:
+        #Retrieve text file
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        text = data.get('text')
+
+        response = openai.audio.speech.create(
+            model="tts-1",
+            voice="alloy",
+            input= text,
+        )
+
+        audio_buffer = io.BytesIO()
+
+        for chunk in response.iter_bytes():
+            audio_buffer.write(chunk)
+        audio_buffer.seek(0)
+
+        return send_file(
+            audio_buffer,
+            mimetype='audio/mpeg',
+            as_attachment=True,
+            download_name='speech.mp3'
+        )
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/ping', defaults={'path': ''})
 @app.route('/ping<path:path>', methods=['HEAD'])
