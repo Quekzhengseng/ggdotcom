@@ -294,18 +294,61 @@ def chat():
                 
                 print(f"Address: {address}")
 
+                #Get by distance instead
+                places_result = gmap.places_nearby(
+                    location=(lat, lng),
+                    rank_by='distance',  # This will sort by distance automatically
+                    type=['tourist_attraction', 'museum', 'art_gallery', 'park', 'shopping_mall', 
+                        'hindu_temple', 'church', 'mosque', 'place_of_worship', 
+                        'amusement_park', 'aquarium', 'zoo', 
+                        'restaurant', 'cafe'],
+                    language='en'
+                )
 
+                # Initialize place and number of repeats variable
+                selected_place = None
+
+                if places_result.get('results'):
+                    for place in places_result['results']:
+                        if (place['name'] in landmarks) :
+                            selected_place = place['name']
+                            print("SELECTED PLACE: " , selected_place)
+                            break
+
+                if not selected_place:
+                    selected_place = address
+            
             except Exception as e:
                 print(f"Geocoding error: {str(e)}")
 
             context = get_rag_information(address)
 
-            #Initalize prompt with text
-            prompt = f"""You are a Singapore Tour Guide, please provide details regarding the text that is given.
-                You are also given the user's address of {address} to provide more context in regards to the users location.
-                Do not mention the address in your answer.
-                Answer what is given in the user's text and describe in detail regarding history or context that is applicable.
-                Here is the Users text: {text_data}"""
+            # Initialise prompt
+            prompt = f"""
+                Due to insufficient information in the RAG, if the location provided below differs greatly from the context in the RAG, completely disregard the RAG and craft original content about the provided location instead.
+
+                You are a friendly Singapore Tour Guide giving a walking tour. If {selected_place} matches with {address}, this means you are in a residential or developing area. 
+                If both are the same, you might have talked about this location already. Here are past messages you have sent: [{past_messages}]. 
+                If empty, it means this is the first time you are talking about it.  
+                If not empty, do not state the same thing again. Talk about something else about the area.
+
+                For residential/developing areas:
+                - Focus exclusively on the neighborhood or district, disregarding unrelated RAG content.
+                - Describe the most interesting aspects of the neighborhood or district you're in.
+                - Mention any nearby parks, nature areas, or community spaces.
+                - Include interesting facts about the area's development or future plans.
+                - Highlight what makes this area unique in Singapore.
+
+                For tourist landmarks:
+                - Name and describe the specific landmark.
+                - Use the RAG only if it directly mentions the landmark and matches the provided location. If the RAG does not match, ignore it entirely.
+                - Share its historical significance and background.
+                - Explain its cultural importance in Singapore.
+                - Describe unique architectural features.
+                - Include interesting facts that make it special.
+
+                The user have asked a question here: {text_data} Answer what is given in the user's text and describe in detail regarding history or context that is applicable.
+                """
 
             print(prompt)
             messages = create_chat_messages(prompt, context)
@@ -526,7 +569,7 @@ def chat():
                         'amusement_park', 'aquarium', 'zoo', 
                         'restaurant', 'cafe'],
                     language='en'
-)
+                )
 
                 if data.get('visitedPlaces'):
                     landmarks = data.get('visitedPlaces')
