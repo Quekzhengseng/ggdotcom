@@ -8,11 +8,13 @@ You will not be able to deploy this locally as all the APIs calls are made onlin
 Instructions to note:
  - As there is no authentication, do run the website one person at a time due to database clashing.
  - Running the app outside of Chinatown or in the heartlands might give less than desirable results due to lack of RAG documents inputted
- - Users can either use the a) start tour app or b) Simulator 
+ - Users can either use the a) start tour app or b) Simulator
+   
    a)  The tour app have several functions;
      1. Enabling auto location will prompt the LLM for a response every 150 seconds.
      2. Sending a photo or text will prompt the LLM for a response in regards to the photo or said text.
      3. The response will be converted to audio output for the user to hear. Currently, text only output has not been added.
+        
    b) The simulator
       You will be able to see all the functions of the app in the simulator, it will auto run 5 different coordinates along chinatown, with one request being made with text and another made with a photo.
 
@@ -24,18 +26,23 @@ Things to note when running the deployed app:
 Deployement Infrastructure:
 FRONTEND 
 - Deployed on VERCEL
+  
   a) DATA
   - requires location
   - text prompt / Image
+    
   b) API CALLS
   - /chat using method post with location/text/image call for response
   - /messages using method get to retrieve all past messages
 
+
 BACKEND 
 - Deployed on RENDER (https://ggdotcom.onrender.com)
+  
   a) DATA
   - ChromaDB embeddings stored in firebase
   - Stores replies from ChatGPT in firestore
+    
   b) API Calls
   - Firebase calls
   - OpenAI calls
