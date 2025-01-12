@@ -1,11 +1,24 @@
 <template>
   <div class="flex flex-col h-screen bg-white">
     <!-- Header with Back Button -->
-    <header class="flex items-center justify-start bg-white p-4 shadow-md">
-      <router-link to="/" class="flex items-center text-red-600 hover:text-red-700 font-semibold text-lg">
+    <header class="flex flex-col items-center justify-between bg-white p-4 shadow-md">
+  <div class="flex items-center justify-between w-full">
+    <router-link to="/" class="flex items-center text-red-600 hover:text-red-700 font-semibold text-lg">
       ← back
-      </router-link>
-    </header>
+    </router-link>
+    <button
+      @click="toggleAutoLocationDetection"
+      class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-1 px-3 rounded-full text-sm"
+    >
+      {{ autoLocationDetection ? 'Auto Location: ON' : 'Auto Location: OFF' }}
+    </button>
+  </div>
+
+  <!-- Text below buttons -->
+  <div class="mt-2 text-center text-sm text-gray-600">
+    (Content generated curated via AI and other techniques)
+  </div>
+</header>
 
     <main class="flex-grow overflow-y-auto p-6 space-y-6">
       <div v-if="messages.length === 0" class="flex items-center justify-center h-full">
@@ -16,7 +29,7 @@
           >
           Send your current location!
           </button>
-          <!-- Loading Spinner -->
+
           <div v-if="loading" class="flex items-center justify-center mt-4">
             <div class="animate-spin w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full"></div>
           </div>
@@ -141,7 +154,6 @@ const { messages, isPaused } = store
 const fileInput = ref(null)
 const recording = ref(false)
 const showFooter = ref(false)
-// const simulatorRunning = ref(false)
 
 const { coords, resume, pause } = useGeolocation()
 
@@ -149,107 +161,14 @@ const recognition = ref(null)
 const isRecognitionSupported = ref(false)
 const loading = ref(false)
 
+const autoLocationDetection = ref(false)
+const locationInterval = ref(null);  // Interval for sending location
+const loggingInterval = ref(null);   // Interval for logging time
+const intervalTime = ref(0); 
+
 //for visited places 
 const visitedPlaces = ref([])
 
-//for simulator
-// const isRunning = ref(false)
-// const currentIndex = ref(0)
-// let intervalId = null
-
-//simulator locations
-// const locations = [
-//   "1.2831,103.8431", // Chinatown Point
-//   "1.2828,103.8442", // Maxwell Food Centre
-//   "1.2823,103.8435", // Sago Street
-//   "1.2798,103.8412", // Ann Siang Hill
-// ]
-
-// const startSimulator = () => {
-//   simulatorRunning.value = true
-//   showFooter.value = false
-//   runSimulator()
-// }
-
-// const endSimulator = () => {
-//   simulatorRunning.value = false
-//   clearInterval(intervalId)
-//   currentIndex.value = 0
-// }
-
-// const runSimulator = async () => {
-//   if (isRunning.value) {
-//     clearInterval(intervalId)
-//     intervalId = null
-//     isRunning.value = false
-//     return
-//   }
-
-//   isRunning.value = true
-
-//   if (currentIndex.value < locations.length) {
-//     const [latitude, longitude] = locations[currentIndex.value].split(",")
-//     coords.value = { latitude, longitude }
-//     console.log(`Sending simulated location (instant): ${locations[currentIndex.value]}`)
-//     await sendLocation()
-//     currentIndex.value += 1
-//   }
-
-//   intervalId = setInterval(async () => {
-//     if (currentIndex.value >= locations.length) {
-//       clearInterval(intervalId)
-//       intervalId = null
-//       isRunning.value = false
-//       currentIndex.value = 0
-//       return
-//     }
-
-//     const [latitude, longitude] = locations[currentIndex.value].split(",")
-//     coords.value = { latitude, longitude }
-//     console.log(`Sending simulated location: ${locations[currentIndex.value]}`)
-//     await sendLocation()
-//     currentIndex.value += 1
-//   }, 20000)
-// }
-
-const sendLocation = async () => {
-  loading.value = true
-  try {
-    const latitude = coords.value.latitude
-    const longitude = coords.value.longitude
-    const location = `${latitude},${longitude}`
-
-    console.log(`Sending location: ${location}`)
-    const payload = {
-      location,
-      visitedPlaces: visitedPlaces.value,
-    }
-    
-    const response = await fetch('https://ggdotcom.onrender.com/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to send location to backend')
-    }
-
-    const data = await response.json()
-    console.log("Location response:", data)
-
-    visitedPlaces.value.push(data.visitedPlace)
-    store.addMessage({ text: data.response, isUser: false })
-
-  } catch (error) {
-    console.error("Error sending location:", error)
-    store.addMessage({ text: "Error sending location.", isUser: false })
-  } finally {
-    loading.value = false
-  }
-}
 
 onMounted(() => {
   resume()
@@ -275,17 +194,109 @@ onUnmounted(() => {
   stopRecognition()
 })
 
-const beginTour = async () => {
-  loading.value = true
-  try {
-    const latitude = coords.value.latitude
-    const longitude = coords.value.longitude
-    const location = `${latitude},${longitude}`
 
-    console.log(`Sending location: ${location}`)
+const getValidLocation = () => {
+  return new Promise((resolve, reject) => {
+    const retryInterval = setInterval(() => {
+      const latitude = coords.value.latitude;
+      const longitude = coords.value.longitude;
+
+      // Check if the coordinates are valid
+      if (latitude !== Infinity && longitude !== Infinity && !isNaN(latitude) && !isNaN(longitude) &&
+          latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180) {
+        clearInterval(retryInterval);
+        resolve({ latitude, longitude });
+      }
+    }, 500); // Retry 
+  });
+};
+
+const startAutoLocationDetection = () => {
+  console.log('Auto location detection started');
+  
+  // Clear existing intervals to avoid overlapping
+  clearInterval(locationInterval.value);
+  clearInterval(loggingInterval.value);
+
+  // Reset the interval time
+  intervalTime.value = 0;
+
+  // Logging interval
+  loggingInterval.value = setInterval(() => {
+    intervalTime.value++;
+    console.log(`Timer running: ${intervalTime.value} seconds`);
+  }, 1000);
+
+  // Location sending interval
+  locationInterval.value = setInterval(async () => {
+    const { latitude, longitude } = coords.value;
+    const location = `${latitude},${longitude}`;
+    const payload = { location: location,
+      visitedPlaces: visitedPlaces.value, };
+    console.log(`Sending location at interval: ${intervalTime.value} seconds`);
+    
+    try {
+      const response = await fetch('https://ggdotcom.onrender.com/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Location sent:', location);
+        console.log(`visited places ${data.visitedPlace}`)
+        store.addMessage({ text: data.response, isUser: false });
+        visitedPlaces.value.push(data.visitedPlace);
+      } else {
+        console.error('Failed to send location.');
+        store.addMessage({ text: 'Failed to send location.', isUser: false });
+      }
+    } catch (error) {
+      console.error('Error sending location:', error);
+      store.addMessage({ text: 'Error sending location.', isUser: false });
+    }
+  }, 60000); // Send location every 60 seconds
+};
+
+const stopAutoLocationDetection = () => {
+  clearInterval(locationInterval.value);
+  clearInterval(loggingInterval.value);
+  locationInterval.value = null;
+  loggingInterval.value = null;
+  console.log('Auto location detection stopped');
+};
+
+const toggleAutoLocationDetection = () => {
+  autoLocationDetection.value = !autoLocationDetection.value;
+
+  if (autoLocationDetection.value) {
+    startAutoLocationDetection();
+  } else {
+    stopAutoLocationDetection();
+  }
+}
+
+// Reset interval timer on user interaction (sending message, image, or speech)
+const resetLocationInterval = () => {
+  if (autoLocationDetection.value) {
+    stopAutoLocationDetection();
+    startAutoLocationDetection();
+  }
+};
+
+
+const beginTour = async () => {
+  loading.value = true;
+  try {
+    const { latitude, longitude } = await getValidLocation(); // Wait for valid location
+    const location = `${latitude},${longitude}`;
+
+    console.log(`Sending location: ${location}`);
     const payload = {
       location: location,
-    }
+      visitedPlaces: visitedPlaces.value, 
+    };
 
     const response = await fetch('https://ggdotcom.onrender.com/chat', {
       method: 'POST',
@@ -293,29 +304,31 @@ const beginTour = async () => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
-    })
+    });
 
     if (!response.ok) {
-      throw new Error('Failed to get response from backend')
+      throw new Error('Failed to get response from backend');
     }
 
-    const data = await response.json()
-    console.log(data)
+    const data = await response.json();
+    console.log(data);
 
-    visitedPlaces.value.push(data.visitedPlace)
-    store.addMessage({ text: data.response, isUser: false })
-    showFooter.value = true
+    visitedPlaces.value.push(data.visitedPlace);
+    store.addMessage({ text: data.response, isUser: false });
+    showFooter.value = true;
 
   } catch (error) {
-    store.addMessage({ text: "Error starting tour.", isUser: false })
-    console.error("Error starting tour:", error)
+    store.addMessage({ text: "Error starting tour.", isUser: false });
+    console.error("Error starting tour:", error);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
+
 
 
 const checkSpeechRecognitionSupport = () => {
+  resetLocationInterval()
   if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     isRecognitionSupported.value = true
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -377,12 +390,14 @@ const checkSpeechRecognitionSupport = () => {
 }
 
 const toggleRecording = () => {
+  resetLocationInterval()
   if (!isRecognitionSupported.value) {
     alert('Speech recognition is not supported in your browser.')
     return
   }
 
   if (recording.value) {
+    resetLocationInterval()
     stopRecognition()
   } else {
     startRecognition()
@@ -404,12 +419,15 @@ const startRecognition = () => {
 }
 
 const stopRecognition = () => {
+  resetLocationInterval()
   if (recognition.value) {
     recognition.value.stop()
   }
 }
 
 const sendMessage = async () => {
+  resetLocationInterval()
+
   if (userInput.value.trim()) {
     const messageText = userInput.value.trim()
     userInput.value = ''
@@ -492,6 +510,7 @@ const getImageDescription = async (imageDataUrl, location) => {
 
 const onImageCapture = async (event) => {
   const file = event.target.files[0];
+  resetLocationInterval()
   if (file) {
     try {
       const options = {
