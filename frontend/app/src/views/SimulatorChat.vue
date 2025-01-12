@@ -198,7 +198,7 @@ const startSimulator = async () => {
         }
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 80000)); // Simulate delay
+      await new Promise((resolve) => setTimeout(resolve, 100000)); // Simulate delay
     }
 
     // Show "Simulator ended" message after all locations are sent
