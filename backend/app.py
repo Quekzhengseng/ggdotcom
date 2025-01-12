@@ -1,3 +1,4 @@
+# Initialise the modules
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import openai
@@ -36,10 +37,12 @@ gmap = googlemaps.Client(key=os.getenv("GOOGLE_API_KEY"))
 # Initialize OpenAI API key
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
+# Base Route
 @app.route('/')
 def home():
     return "Tour Guide API is running!"
 
+#method to fetch rag context
 def get_rag_information(place_name: str) -> Dict[str, List[str]]:
     """Fetch contextual information using local RAG manager"""
     try:
@@ -61,6 +64,7 @@ def get_rag_information(place_name: str) -> Dict[str, List[str]]:
         logging.error(f"Error in RAG query: {str(e)}")
         return {"wikipedia": []}
 
+#method to mix prompt with rag context
 def create_chat_messages(prompt: str, context: Dict[str, List[str]], is_image: bool = False, image_data: str = None) -> List[dict]:
     """Create chat messages with proper context integration"""
     messages = []
@@ -110,11 +114,12 @@ def create_chat_messages(prompt: str, context: Dict[str, List[str]], is_image: b
     
     return messages
 
-
+# main route for frontend integration
 @app.route('/chat', methods=['POST'])
 
 def chat():
     try:
+        #fetch data from user
         data = request.get_json()
         # Need factor cases with location, image (Base64)
         # if there is user input, add in to DB as well
@@ -210,7 +215,7 @@ def chat():
                 model="gpt-4o-mini",
                 messages=messages,
                 
-                # CAN UNCOMMENT THIS BLOCK OF CODE and replace the messages right above to compare w and w/o RAG
+                # DEPREICIATED CAN UNCOMMENT THIS BLOCK OF CODE and replace the messages right above to compare w and w/o RAG
                 # [
                 #     {
                 #         "role": "user",
@@ -425,6 +430,7 @@ def chat():
                 model="gpt-4o-mini",
                 messages=messages,
                 
+                # DEPRECIATED
                 # [
                 #     {
                 #         "role": "user",
@@ -709,7 +715,8 @@ def test():
 
 
             print(prompt)
-                
+            
+            # DEPRECIATED
             # try:
             #     # create USER msg data for firestore
             #     message_data = {
@@ -741,6 +748,7 @@ def test():
                 model="gpt-4o-mini",
                 messages= messages,
                 
+                # DEPRECIATED
                 # [
                 #     {
                 #         "role": "user",
@@ -769,6 +777,7 @@ def test():
                 'response': response_text
             }
 
+            # DEPRECIATED
             # try:
             #     # create REPLY msg data for firestore
             #     message_data = {
@@ -795,6 +804,7 @@ def test():
         logging.error("Error in /test endpoint", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
+# endpoint to retrieve audio tts file
 @app.route('/audio', methods = ['POST'])
 def audio():
     try:
@@ -827,6 +837,7 @@ def audio():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# for uptimerobot ping to keep server active
 @app.route('/ping', defaults={'path': ''})
 @app.route('/ping<path:path>', methods=['HEAD'])
 def ping(path):
