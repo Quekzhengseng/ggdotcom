@@ -310,10 +310,9 @@ def chat():
 
                 if places_result.get('results'):
                     for place in places_result['results']:
-                        if (place['name'] in landmarks) :
-                            selected_place = place['name']
-                            print("SELECTED PLACE: " , selected_place)
-                            break
+                        selected_place = place['name']
+                        print("SELECTED PLACE: " , selected_place)
+                        break
 
                 if not selected_place:
                     selected_place = address
