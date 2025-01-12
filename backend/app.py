@@ -507,15 +507,26 @@ def chat():
                 print(f"Address: {address}")
 
                 # Get nearby tourist attractions
+                # places_result = gmap.places_nearby(
+                #     location=(lat, lng),
+                #     radius= 500,  # 500m radius
+                #     type=['tourist_attraction', 'museum', 'art_gallery', 'park', 'shopping_mall', 
+                #         'hindu_temple', 'church', 'mosque', 'place_of_worship', 
+                #         'amusement_park', 'aquarium', 'zoo', 
+                #         'restaurant', 'cafe'],  # Specifically search for tourist attractions
+                #     language='en'  # Ensure English results
+                #         )
+            
+                #Get by distance instead
                 places_result = gmap.places_nearby(
                     location=(lat, lng),
-                    radius=500,  # 500m radius
+                    rankby='distance',  # This will sort by distance automatically
                     type=['tourist_attraction', 'museum', 'art_gallery', 'park', 'shopping_mall', 
                         'hindu_temple', 'church', 'mosque', 'place_of_worship', 
                         'amusement_park', 'aquarium', 'zoo', 
-                        'restaurant', 'cafe'],  # Specifically search for tourist attractions
-                    language='en'  # Ensure English results
-                        )
+                        'restaurant', 'cafe'],
+                    language='en'
+)
 
                 if data.get('visitedPlaces'):
                     landmarks = data.get('visitedPlaces')
