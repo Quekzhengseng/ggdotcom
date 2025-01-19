@@ -647,13 +647,12 @@ def chat():
 
                 For tourist landmarks:
                 - Name and describe the specific landmark.
-                - Use the RAG only if it directly mentions the landmark and matches the provided location. If the RAG does not match, ignore it entirely.
                 - Share its historical significance and background.
                 - Explain its cultural importance in Singapore.
                 - Describe unique architectural features.
                 - Include interesting facts that make it special.
 
-                Start with "You see [Point of interest/Area name]" and keep the tone friendly and conversational, as if speaking to tourists in person. Don't mention exact addresses or coordinates.
+                Start with "You see [Point of interest/Area name]" and keep the tone friendly and conversational, as if speaking to tourists in person. Don't mention exact addresses or coordinates. Use the RAG only if it directly mentions the landmark and matches the provided location. If the RAG does not match, ignore it entirely.
                 """
 
             

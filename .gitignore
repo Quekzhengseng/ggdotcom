@@ -169,3 +169,5 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+backend/.gitignore
+backend/ggdotcom-254aa-firebase-adminsdk-1nske-fd0d2cac2a.json
