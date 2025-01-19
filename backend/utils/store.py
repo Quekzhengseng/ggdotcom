@@ -7,12 +7,16 @@ import os
 from datetime import datetime
 import requests
 import json
+from dotenv import load_dotenv
 
 import openai
+
+load_dotenv()
 
 class WeaviateStore:
     def __init__(self):
         weaviate_url = os.environ["WEAVIATE_URL"]
+        print(weaviate_url)
         weaviate_api_key = os.environ["WEAVIATE_API_KEY"]
         self.client = weaviate.connect_to_weaviate_cloud(
             cluster_url=weaviate_url,
@@ -149,7 +153,7 @@ class WeaviateStore:
                 query=query,
                 vector=query_vector,  # Provide the vector explicitly
                 alpha=alpha,
-                limit=limit,
+                limit=2,
                 return_metadata=["score", "explain_score", "distance", "certainty"]
             )
             return result
