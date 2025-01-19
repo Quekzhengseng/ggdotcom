@@ -12,3 +12,4 @@ pydantic==2.8.0
 googlemaps==4.10.0
 chromadb==0.6.2
 weaviate-client==4.10.4
+
