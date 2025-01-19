@@ -8,7 +8,9 @@ from datetime import datetime
 import requests
 import json
 from dotenv import load_dotenv
-
+import asyncio
+import nest_asyncio
+nest_asyncio.apply()
 import openai
 
 load_dotenv()
@@ -16,7 +18,6 @@ load_dotenv()
 class WeaviateStore:
     def __init__(self):
         weaviate_url = os.environ["WEAVIATE_URL"]
-        print(weaviate_url)
         weaviate_api_key = os.environ["WEAVIATE_API_KEY"]
         self.client = weaviate.connect_to_weaviate_cloud(
             cluster_url=weaviate_url,
@@ -24,6 +25,16 @@ class WeaviateStore:
             headers={"X-OpenAI-Api-Key": os.getenv("OPENAI_API_KEY")}
         )
         self._create_collections()
+        
+    def _run_async(self, coro):
+        """Helper method to run async operations"""
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        return loop.run_until_complete(coro)
+
 
     def _create_collections(self):
         """Create collections if they don't exist"""
@@ -102,13 +113,6 @@ class WeaviateStore:
     def search_similar(self, collection_name: str, query: str, limit: int = 5) -> dict:
         """Search for similar documents using vector similarity"""
         try:
-            # Generate embedding for query
-            # response = openai.embeddings.create(
-            #     model="text-embedding-ada-002",
-            #     input=query
-            # )
-            # query_vector = response.data[0].embedding
-            
             collection = self.client.collections.get(collection_name)
             result = collection.query.near_text(
                 query=query,
@@ -147,13 +151,11 @@ class WeaviateStore:
             query_vector = response.data[0].embedding
             
             collection = self.client.collections.get(collection_name)
-            
-            # Perform hybrid search with both query text and vector
             result = collection.query.hybrid(
                 query=query,
-                vector=query_vector,  # Provide the vector explicitly
+                vector=query_vector,
                 alpha=alpha,
-                limit=2,
+                limit=limit,
                 return_metadata=["score", "explain_score", "distance", "certainty"]
             )
             return result
@@ -161,10 +163,6 @@ class WeaviateStore:
         except Exception as e:
             logging.error(f"Error in hybrid search: {e}")
             raise
-
-
-
-
     def get_documents(self, collection_name: str, limit: int = 10000) -> List[Dict[str, Any]]:
         """Retrieve documents from specified collection"""
         try:
