@@ -8,9 +8,9 @@ from datetime import datetime
 import requests
 import json
 from dotenv import load_dotenv
-import asyncio
-import nest_asyncio
-nest_asyncio.apply()
+# import asyncio
+# import nest_asyncio
+# nest_asyncio.apply()
 import openai
 
 load_dotenv()

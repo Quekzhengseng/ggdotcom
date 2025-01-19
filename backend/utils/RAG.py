@@ -5,7 +5,7 @@ from typing import Dict, List
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from utils.store import WeaviateStore
-import asyncio
+# import asyncio
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
