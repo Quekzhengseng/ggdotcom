@@ -7,7 +7,9 @@ import os
 from datetime import datetime
 import requests
 import json
+from dotenv import load_dotenv
 
+load_dotenv()
 import openai
 
 class WeaviateStore:
