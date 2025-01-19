@@ -5,7 +5,6 @@ from typing import Dict, List
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from utils.store import WeaviateStore
-# import asyncio
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -14,47 +13,32 @@ class RAGManager:
         self.store = WeaviateStore()
         logging.basicConfig(level=logging.INFO)
 
-    def _ensure_store(self):
-        """Ensure store is initialized"""
-        if not self.store:
-            self.store = WeaviateStore()
-    
-    def _close_store(self):
-        """Safely close store connection"""
-        try:
-            if self.store:
-                self.store.close()
-                self.store = None
-        except Exception as e:
-            logging.error(f"Error closing store: {e}")
-        
-    def _run_async(self, coro):
-        """Helper method to run async operations"""
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-        return loop.run_until_complete(coro)
-
-
     def query_place(self, place_name: str, limit: int = 5) -> Dict[str, List[str]]:
-        """Query both collections for relevant information about a place"""
+        """
+        Query both collections for relevant information about a place
+        
+        Args:
+            place_name: Name of the place to search for
+            limit: Maximum number of results to return per collection
+                
+        Returns:
+            Dict containing results from both collections
+        """
         try:
-            # Search in Wikipedia collection
+            # Search in Wikipedia collection first
             wiki_results = self.store.search_hybrid(
                 collection_name="WikipediaCollection",
                 query=place_name,
                 alpha=0.5,
-                limit=limit
+                limit=2
             )
             
-            # Process Wikipedia results
             combined_results = {
                 "wikipedia": [],
                 "attractions": []
             }
             
+            # Process Wikipedia results
             if wiki_results and hasattr(wiki_results, 'objects'):
                 for obj in wiki_results.objects:
                     if obj.properties:
@@ -62,7 +46,7 @@ class RAGManager:
                         if text:
                             combined_results["wikipedia"].append(text)
             
-            # Try SingaporeAttraction collection
+            # Only try SingaporeAttraction if it exists
             try:
                 attractions_results = self.store.search_hybrid(
                     collection_name="SingaporeAttraction",
@@ -71,6 +55,7 @@ class RAGManager:
                     limit=limit
                 )
                 
+                # Process Attractions results
                 if attractions_results and hasattr(attractions_results, 'objects'):
                     for obj in attractions_results.objects:
                         if obj.properties:
@@ -78,16 +63,15 @@ class RAGManager:
                             if text:
                                 combined_results["attractions"].append(text)
             except Exception as e:
-                logging.warning(f"Error querying SingaporeAttraction collection: {str(e)}")
+                logging.warning(f"Error querying SingaporeAttraction collection (may not exist): {str(e)}")
             
+            logging.info(f"Found {len(combined_results['wikipedia'])} Wikipedia results and {len(combined_results['attractions'])} attraction results")
             return combined_results
-            
+                
         except Exception as e:
             logging.error(f"Error querying place {place_name}: {str(e)}")
             return {"wikipedia": [], "attractions": []}
-        finally:
-            self.store.close()
-
+        
     def query_by_location(self, lat: float, lng: float, radius: float = 500) -> Dict[str, List[str]]:
         """
         Query attractions near a specific location
@@ -100,16 +84,9 @@ class RAGManager:
         Returns:
             Dict containing nearby attractions information
         """
-        try:
-            self._ensure_store()
-            # ... rest of your existing code ...
-            
-        except Exception as e:
-            logging.error(f"Error in location query: {str(e)}")
-            return {"wikipedia": [], "attractions": []}
-        finally:
-            self._close_store()        
-
+        # This would require geospatial search capabilities
+        # For now, we'll return empty results
+        return {"wikipedia": [], "attractions": []}
     
     def close(self):
         """Clean up resources"""
