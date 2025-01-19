@@ -1,124 +1,119 @@
-import chromadb
 import os
 import sys
 import logging
-from typing import Dict, List, Optional
-from difflib import SequenceMatcher
-from flask import Flask, request, jsonify, send_file
+from typing import Dict, List
+from flask import Flask, request, jsonify
 from flask_cors import CORS
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from config import get_chroma_settings
+from utils.store import WeaviateStore
+# import asyncio
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def similar(a: str, b: str) -> float:
-    """Calculate string similarity ratio"""
-    a = a.lower().strip()
-    b = b.lower().strip()
-    return SequenceMatcher(None, a, b).ratio()
-
 class RAGManager:
     def __init__(self):
-        settings = get_chroma_settings()
-        self.db_path = settings["persist_directory"]
-        logging.info(f"Initializing local ChromaDB at: {self.db_path}")
-        
-        self.client = chromadb.PersistentClient(
-            path=self.db_path
-        )
-        
+        self.store = WeaviateStore()
+        logging.basicConfig(level=logging.INFO)
+
+    def _ensure_store(self):
+        """Ensure store is initialized"""
+        if not self.store:
+            self.store = WeaviateStore()
+    
+    def _close_store(self):
+        """Safely close store connection"""
         try:
-            self.wikipedia_collection = self.client.get_collection("wikipedia_collection")
-            logging.info("Successfully connected to wikipedia_collection")
-            # Get all metadata to use for matching
-            self.all_metadata = self.wikipedia_collection.get()['metadatas']
-            self.all_names = [meta.get('name', '').lower() for meta in self.all_metadata]
-            logging.info(f"Loaded {len(self.all_names)} place names")
+            if self.store:
+                self.store.close()
+                self.store = None
         except Exception as e:
-            logging.error(f"Error accessing wikipedia collection: {str(e)}")
-            self.wikipedia_collection = None
-            self.all_metadata = []
-            self.all_names = []
-
-    @property
-    def collections(self) -> List[str]:
-        return ["wikipedia_collection", "singapore_attractions"]
-
-    def find_best_matching_place(self, text: str) -> Optional[str]:
-        """Find the best matching place name from our collection"""
-        text = text.lower()
-        best_match = None
-        best_score = 0.3  # Minimum threshold
+            logging.error(f"Error closing store: {e}")
         
-        # Extract key parts from the input
-        parts = [p.strip() for p in text.split(',')[0].split()]
-        
-        for name in self.all_names:
-            # Try exact matches first
-            if name in text or text in name:
-                return name
-            
-            # Try partial matches
-            for part in parts:
-                if len(part) > 3:  # Only check substantial words
-                    score = similar(part, name)
-                    if score > best_score:
-                        best_score = score
-                        best_match = name
-        
-        return best_match
-
-    def format_document_for_response(self, document: str, metadata: Dict) -> str:
-        """Format document content for response"""
-        sections = document.split('\n\n')
-        relevant_info = []
-        
-        for section in sections:
-            if section.startswith("Summary:"):
-                relevant_info.append(section.replace("Summary:", "").strip())
-            elif section.startswith("History:") and len(section) > 10:
-                relevant_info.append(section.replace("History:", "").strip())
-            elif section.startswith("Description:") and len(section) > 10:
-                relevant_info.append(section.replace("Description:", "").strip())
-        
-        return " ".join(relevant_info) if relevant_info else document
-
-    def query_place(self, input_text: str, limit: int = 3) -> Dict[str, List[str]]:
-        """Query function with improved place matching"""
-        results = {"wikipedia": []}
-        
-        if not self.wikipedia_collection:
-            return results
-
+    def _run_async(self, coro):
+        """Helper method to run async operations"""
         try:
-            # Find best matching place name
-            place_name = self.find_best_matching_place(input_text)
-            logging.info(f"Best matching place: {place_name}")
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        return loop.run_until_complete(coro)
+
+
+    def query_place(self, place_name: str, limit: int = 5) -> Dict[str, List[str]]:
+        """Query both collections for relevant information about a place"""
+        try:
+            # Search in Wikipedia collection
+            wiki_results = self.store.search_hybrid(
+                collection_name="WikipediaCollection",
+                query=place_name,
+                alpha=0.5,
+                limit=limit
+            )
             
-            if place_name:
-                # Query using the matched place name
-                query_results = self.wikipedia_collection.query(
-                    query_texts=[place_name],
-                    n_results=limit,
-                    include=["documents", "metadatas"]
+            # Process Wikipedia results
+            combined_results = {
+                "wikipedia": [],
+                "attractions": []
+            }
+            
+            if wiki_results and hasattr(wiki_results, 'objects'):
+                for obj in wiki_results.objects:
+                    if obj.properties:
+                        text = obj.properties.get("text", "").strip()
+                        if text:
+                            combined_results["wikipedia"].append(text)
+            
+            # Try SingaporeAttraction collection
+            try:
+                attractions_results = self.store.search_hybrid(
+                    collection_name="SingaporeAttraction",
+                    query=place_name,
+                    alpha=0.5,
+                    limit=limit
                 )
                 
-                if query_results and 'documents' in query_results:
-                    documents = query_results['documents'][0]
-                    metadatas = query_results['metadatas'][0]
-                    
-                    for doc, metadata in zip(documents, metadatas):
-                        formatted_doc = self.format_document_for_response(doc, metadata)
-                        if formatted_doc:
-                            results["wikipedia"].append(formatted_doc)
+                if attractions_results and hasattr(attractions_results, 'objects'):
+                    for obj in attractions_results.objects:
+                        if obj.properties:
+                            text = obj.properties.get("text", "").strip()
+                            if text:
+                                combined_results["attractions"].append(text)
+            except Exception as e:
+                logging.warning(f"Error querying SingaporeAttraction collection: {str(e)}")
             
-            logging.info(f"Found {len(results['wikipedia'])} relevant results")
-
+            return combined_results
+            
         except Exception as e:
-            logging.error(f"Error during query: {str(e)}")
+            logging.error(f"Error querying place {place_name}: {str(e)}")
+            return {"wikipedia": [], "attractions": []}
+        finally:
+            self.store.close()
 
-        return results
+    def query_by_location(self, lat: float, lng: float, radius: float = 500) -> Dict[str, List[str]]:
+        """
+        Query attractions near a specific location
+        
+        Args:
+            lat: Latitude
+            lng: Longitude
+            radius: Search radius in meters
+            
+        Returns:
+            Dict containing nearby attractions information
+        """
+        try:
+            self._ensure_store()
+            # ... rest of your existing code ...
+            
+        except Exception as e:
+            logging.error(f"Error in location query: {str(e)}")
+            return {"wikipedia": [], "attractions": []}
+        finally:
+            self._close_store()        
+
+    
+    def close(self):
+        """Clean up resources"""
+        self.store.close()
 
 # Create a single instance to be imported
 rag_manager = RAGManager()
@@ -127,16 +122,6 @@ rag_manager = RAGManager()
 if __name__ == '__main__':
     app = Flask(__name__)
     CORS(app)
-
-    @app.route('/chromadb', defaults={'path': ''})
-    @app.route('/chromadb<path:path>', methods=['HEAD'])
-    def ping(path):
-        try:
-            rag_manager.client.heartbeat()
-            return '', 200
-        except Exception as e:
-            app.logger.error(f"Health check failed: {str(e)}")
-            return '', 503
 
     @app.route('/RAG', methods=['POST'])
     def query_location():
