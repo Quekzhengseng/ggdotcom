@@ -766,6 +766,61 @@ def chat():
             store.close()
     #END PURE LOCATION CHECK ----------------------------------------------------------------
 
+@app.route('/scan', methods = ['POST'])
+def scan():
+    try:
+        data = request.get_json()
+        location = data.get('location')
+        print(f"Location Received: {location}")
+        lat, lng = map(float, location.split(','))
+        
+        # # Get address using Google Maps
+        # gmaps_result = gmap.reverse_geocode((lat, lng))
+        
+        # if gmaps_result and len(gmaps_result) > 0:
+        #     address = gmaps_result[0]['formatted_address']
+        # else:
+        #     address = location  # Fallback to coordinates if geocoding fails
+
+        if (data.get['distance'] == False):
+            places_result = gmap.places_nearby(
+                location=(lat, lng),
+                rank_by='distance',  # This will sort by distance automatically
+                type=['tourist_attraction', 'museum', 'art_gallery', 'park', 'shopping_mall', 
+                    'hindu_temple', 'church', 'mosque', 'place_of_worship', 
+                    'amusement_park', 'aquarium', 'zoo', 
+                    'restaurant', 'cafe'],
+                language='en'
+            )
+        else:
+            places_result = gmap.places_nearby(
+            location=(lat, lng),
+            radius = 500,
+            type=['tourist_attraction', 'museum', 'art_gallery', 'park', 'shopping_mall', 
+                'hindu_temple', 'church', 'mosque', 'place_of_worship', 
+                'amusement_park', 'aquarium', 'zoo', 
+                'restaurant', 'cafe'],
+            language='en'
+        )
+        
+        all_locations = []
+
+        if places_result.get('results'):
+            for place in places_result['results']:
+                all_locations.append([place['name'], place['geometry']['location']])
+
+        response_data = {
+            'id': uuid.uuid4().hex,
+            'timestamp': datetime.now().isoformat(),
+            'locations': all_locations,
+        }
+        
+        return jsonify(response_data)
+
+    except:
+        print(f"Error: Failed to retrieve chat for walking tour - {str(e)}")
+
+
 @app.route('/messages', methods = ['GET'])
 def retrieve():
     try:    
@@ -908,6 +963,7 @@ def test():
     except Exception as e:
         logging.error("Error in /test endpoint", exc_info=True)
         return jsonify({'error': str(e)}), 500
+
 
 # endpoint to retrieve audio tts file
 @app.route('/audio', methods = ['POST'])
