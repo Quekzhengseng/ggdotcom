@@ -16,6 +16,7 @@ from typing import List, Dict
 from utils.RAG import rag_manager
 from firebase_init import initialize_firebase
 from utils.store import WeaviateStore
+import base64
 
 # Configure logging
 logging.basicConfig(level=logging.ERROR)
@@ -766,6 +767,383 @@ def chat():
             store.close()
     #END PURE LOCATION CHECK ----------------------------------------------------------------
 
+@app.route('/chat2', methods = ['POST'])
+def chat2():
+
+    try:
+            #fetch data from user
+        data = request.get_json()
+        # Need factor cases with location, image (Base64)
+        # if there is user input, add in to DB as well
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        location = data.get('location')
+        image_data = data.get('image')
+        text = data.get('text')
+
+    except Exception as e:
+        print(f"Error: Failed - {str(e)}")
+
+    if location and text and image_data:
+        try:
+            print(f"Location Received: {location}")
+            lat, lng = map(float, location.split(','))
+
+            # Get address using Google Maps
+            selected_place = gmap.reverse_geocode((lat, lng))
+
+
+            try:
+                # Check if it already has the prefix
+                if image_data.startswith('data:image/jpeg;base64,'):
+                    # Remove the prefix to clean the base64 string
+                    base64_string = image_data.replace('data:image/jpeg;base64,', '')
+                else:
+                    base64_string = image_data
+                    
+                # Remove any whitespace or newlines
+                base64_string = base64_string.strip().replace('\n', '').replace('\r', '')
+                
+                # Add the prefix back to image_data
+                image_data = f"data:image/jpeg;base64,{base64_string}"
+            except Exception as e:
+                print(f"Error cleaning base64 image: {str(e)}")
+                raise ValueError("Invalid base64 image data")
+
+            context = get_rag_information(selected_place)
+            print("ADDED CONTEXT", context)
+
+            # Add address to prompt
+            prompt = f"""
+                Due to insufficient information in the RAG, if the location provided below differs greatly from the context in the RAG, completely disregard the RAG and craft original content about the provided location instead.
+
+                You are a friendly Singapore Tour Guide giving a walking tour. The place that the tourist has selected is {selected_place} You are also provided with a photo.
+
+
+                Answer the question that the tourist has asked here. {text} Use the RAG only if it directly mentions the landmark and matches the provided location. 
+                If the RAG does not match, ignore it entirely.
+                """
+
+            print("PROMPT", prompt)
+
+            messages = create_chat_messages(prompt, context, is_image=True)
+
+            # Call OpenAI API
+            response = openai.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=messages,
+                max_tokens=500,
+                temperature=0
+            )
+
+            # Extract response text
+            response_text = response.choices[0].message.content
+
+            print(f"Response: {response_text}")
+
+            # Create response object
+            response_data = {
+                'id': uuid.uuid4().hex,
+                'timestamp': datetime.now().isoformat(),
+                'prompt': prompt,
+                'response': response_text
+            }
+
+            #Create User message for firestore
+            message_data = {
+                'timestamp': datetime.now(),
+                'chatText': text,
+                'image': image_data,
+                'location': location,
+                'userCheck': "true",
+            }
+
+            #Add to firestore
+            db.collection("tour").document("yDLsVQhwoDF9ZHoG0Myk")\
+            .collection('messages2').add(message_data)
+
+            # create ChatGPT reply for firestore
+            message_data = {
+                'timestamp': datetime.now(),
+                'chatText': response_text,
+                'image': "",
+                'location': location,
+                'userCheck': "false",
+            }
+
+            #Add to firestore
+            db.collection("tour").document("yDLsVQhwoDF9ZHoG0Myk")\
+            .collection('messages2').add(message_data)
+
+            return jsonify(response_data)
+
+        except Exception as e:
+            print(f"Error: Failed - {str(e)}")
+    elif location and text:
+        try:
+            print(f"Location Received: {location}")
+            lat, lng = map(float, location.split(','))
+
+            # Get address using Google Maps
+            selected_place = gmap.reverse_geocode((lat, lng))
+
+            context = get_rag_information(selected_place)
+            print("ADDED CONTEXT", context)
+
+            # Add address to prompt
+            prompt = f"""
+                Due to insufficient information in the RAG, if the location provided below differs greatly from the context in the RAG, completely disregard the RAG and craft original content about the provided location instead.
+
+                You are a friendly Singapore Tour Guide giving a walking tour. The place that the tourist has selected is {selected_place}. 
+
+                Answer the question that the tourist has asked here. {text} Use the RAG only if it directly mentions the landmark and matches the provided location. 
+                If the RAG does not match, ignore it entirely.
+                """
+
+            print("PROMPT", prompt)
+
+            messages = create_chat_messages(prompt, context)
+
+            # Call OpenAI API
+            response = openai.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=messages,
+                max_tokens=500,
+                temperature=0.5
+            )
+
+            # Extract response text
+            response_text = response.choices[0].message.content
+
+            print(f"Response: {response_text}")
+
+            # Create response object
+            response_data = {
+                'id': uuid.uuid4().hex,
+                'timestamp': datetime.now().isoformat(),
+                'prompt': prompt,
+                'response': response_text,
+            }
+    
+            #Create User message for firestore
+            message_data = {
+                'timestamp': datetime.now(),
+                'chatText': text,
+                'image': "",
+                'location': location,
+                'userCheck': "true",
+            }
+
+            #Add to firestore
+            db.collection("tour").document("yDLsVQhwoDF9ZHoG0Myk")\
+            .collection('messages2').add(message_data)
+
+            # create ChatGPT reply for firestore
+            message_data = {
+                'timestamp': datetime.now(),
+                'chatText': response_text,
+                'image': "",
+                'location': location,
+                'userCheck': "false",
+            }
+
+            #Add to firestore
+            db.collection("tour").document("yDLsVQhwoDF9ZHoG0Myk")\
+            .collection('messages2').add(message_data)
+
+            return jsonify(response_data)
+
+        except Exception as e:
+            print(f"Error: Failed - {str(e)}")
+    elif location and image_data:
+        try:
+            print(f"Location Received: {location}")
+            lat, lng = map(float, location.split(','))
+
+            # Get address using Google Maps
+            selected_place = gmap.reverse_geocode((lat, lng))
+
+            context = get_rag_information(selected_place)
+            print("ADDED CONTEXT", context)
+
+            # Add address to prompt
+            prompt = f"""
+                Due to insufficient information in the RAG, if the location provided below differs greatly from the context in the RAG, completely disregard the RAG and craft original content about the provided location instead.
+
+                You are a friendly Singapore Tour Guide giving a walking tour. The place that the tourist has selected is {selected_place}. You are also provided with a photo.
+
+                For residential/developing areas:
+                - Focus exclusively on the neighborhood or district, disregarding unrelated RAG content.
+                - Describe the most interesting aspects of the neighborhood or district you're in.
+                - Mention any nearby parks, nature areas, or community spaces.
+                - Include interesting facts about the area's development or future plans.
+                - Highlight what makes this area unique in Singapore.
+
+                For tourist landmarks:
+                - Name and describe the specific landmark.
+                - Share its historical significance and background.
+                - Explain its cultural importance in Singapore.
+                - Describe unique architectural features.
+                - Include interesting facts that make it special.
+
+                Start with "You see [Point of interest/Area name] in the photo" and keep the tone friendly and conversational, as if speaking to tourists in person.
+                Don't mention exact addresses or coordinates. Use the RAG only if it directly mentions the landmark and matches the provided location. 
+                If the RAG does not match, ignore it entirely.
+                """
+
+            print("PROMPT", prompt)
+
+            messages = create_chat_messages(prompt, context, is_image=True)
+
+            # Call OpenAI API
+            response = openai.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=messages,
+                max_tokens=500,
+                temperature=0
+            )
+
+            # Extract response text
+            response_text = response.choices[0].message.content
+
+            print(f"Response: {response_text}")
+
+            # Create response object
+            response_data = {
+                'id': uuid.uuid4().hex,
+                'timestamp': datetime.now().isoformat(),
+                'prompt': prompt,
+                'response': response_text,
+            }
+
+            #Create User message for firestore
+            message_data = {
+                'timestamp': datetime.now(),
+                'chatText': "",
+                'image': image_data,
+                'location': location,
+                'userCheck': "true",
+            }
+
+            #Add to firestore
+            db.collection("tour").document("yDLsVQhwoDF9ZHoG0Myk")\
+            .collection('messages2').add(message_data)
+
+            # create ChatGPT reply for firestore
+            message_data = {
+                'timestamp': datetime.now(),
+                'chatText': response_text,
+                'image': "",
+                'location': location,
+                'userCheck': "false",
+            }
+
+            #Add to firestore
+            db.collection("tour").document("yDLsVQhwoDF9ZHoG0Myk")\
+            .collection('messages2').add(message_data)
+
+            return jsonify(response_data)
+
+
+        except Exception as e:
+            print(f"Error: Failed - {str(e)}")
+    else:
+        try:
+            print(f"Location Received: {location}")
+            lat, lng = map(float, location.split(','))
+
+            # Get address using Google Maps
+            selected_place = gmap.reverse_geocode((lat, lng))
+
+            context = get_rag_information(selected_place)
+            print("ADDED CONTEXT", context)
+
+            # Add address to prompt
+            prompt = f"""
+                Due to insufficient information in the RAG, if the location provided below differs greatly from the context in the RAG, completely disregard the RAG and craft original content about the provided location instead.
+
+                You are a friendly Singapore Tour Guide giving a walking tour. The place that the tourist has selected is {selected_place}.
+
+                For residential/developing areas:
+                - Focus exclusively on the neighborhood or district, disregarding unrelated RAG content.
+                - Describe the most interesting aspects of the neighborhood or district you're in.
+                - Mention any nearby parks, nature areas, or community spaces.
+                - Include interesting facts about the area's development or future plans.
+                - Highlight what makes this area unique in Singapore.
+
+                For tourist landmarks:
+                - Name and describe the specific landmark.
+                - Share its historical significance and background.
+                - Explain its cultural importance in Singapore.
+                - Describe unique architectural features.
+                - Include interesting facts that make it special.
+
+                Start with "You see [Point of interest/Area name]" and keep the tone friendly and conversational, as if speaking to tourists in person.
+                Don't mention exact addresses or coordinates. Use the RAG only if it directly mentions the landmark and matches the provided location. 
+                If the RAG does not match, ignore it entirely.
+                """
+
+            print("PROMPT", prompt)
+
+            messages = create_chat_messages(prompt, context)
+
+            # Call OpenAI API
+            response = openai.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=messages,
+                max_tokens=500,
+                temperature=0.5
+            )
+
+            # Extract response text
+            response_text = response.choices[0].message.content
+
+            print(f"Response: {response_text}")
+
+            # Create response object
+            response_data = {
+                'id': uuid.uuid4().hex,
+                'timestamp': datetime.now().isoformat(),
+                'prompt': prompt,
+                'response': response_text,
+            }
+
+            # create ChatGPT reply for firestore
+            message_data = {
+                'timestamp': datetime.now(),
+                'chatText': response_text,
+                'image': "",
+                'location': location,
+                'userCheck': "false",
+            }
+
+            #Add to firestore
+            db.collection("tour").document("yDLsVQhwoDF9ZHoG0Myk")\
+            .collection('messages2').add(message_data)
+
+        except Exception as e:
+            print(f"Error: Failed - {str(e)}")
+
+@app.route('/image', methods = ['POST'])
+def photo():
+    try:
+        data = request.get_json()
+        photo_reference = data.get('photo_reference')
+        image_data = b""
+
+        for chunk in gmap.places_photo(photo_reference, max_width=None, max_height=None):
+            if chunk:
+                image_data += chunk
+
+        base64_image = base64.b64encode(image_data).decode('utf-8')
+
+        return jsonify(base64_image)
+
+    except Exception as e:
+        print(f"Error: Failed - {str(e)}")
+
+
 @app.route('/scan', methods = ['POST'])
 def scan():
     try:
@@ -782,7 +1160,7 @@ def scan():
         # else:
         #     address = location  # Fallback to coordinates if geocoding fails
 
-        if (data.get['distance'] == False):
+        if (data.get['is_distance'] == False):
             places_result = gmap.places_nearby(
                 location=(lat, lng),
                 rank_by='distance',  # This will sort by distance automatically
@@ -807,7 +1185,7 @@ def scan():
 
         if places_result.get('results'):
             for place in places_result['results']:
-                all_locations.append([place['name'], place['geometry']['location']])
+                all_locations.append([place['name'], place['geometry']['location'], place['photos'][0]['photo_references']])
 
         response_data = {
             'id': uuid.uuid4().hex,
@@ -817,7 +1195,7 @@ def scan():
         
         return jsonify(response_data)
 
-    except:
+    except Exception as e:
         print(f"Error: Failed to retrieve chat for walking tour - {str(e)}")
 
 
@@ -845,6 +1223,50 @@ def retrieve():
             logging.error("Error in /messages endpoint", exc_info=True)
             return jsonify({'error': str(e)}), 500
 
+
+@app.route('/messages2', methods = ['POST'])
+def retrieve2():
+    try:    
+        data = request.get_json()
+        location_filter = data.get('location')
+
+        messages = (
+                db.collection('tour')
+                .document("yDLsVQhwoDF9ZHoG0Myk")
+                .collection('messages2')
+                .where('location', '==', location_filter)  # Filter by location
+                .order_by('timestamp', direction='DESCENDING')
+                .stream()
+        )
+
+        message_list = []
+
+        for msg in messages:
+            msg_data = msg.to_dict()
+            location = msg_data.get("location")  # Extract the location from the message
+            chatlog = msg_data.get("Chatlog")   # Extract the chatlog text
+            is_user = msg_data.get("isUser")    # Extract whether it’s a user message
+
+            if not location or not chatlog or is_user is None:
+                continue  # Skip invalid entries
+
+                # Create a new list for the location if it doesn't exist
+            if location not in message_list:
+                message_list[location] = []
+            
+            # Add the chatlog data to the location's list
+            message_list[location].append({
+                "Chatlog": chatlog,
+                "isUser": is_user
+            })
+        
+        return jsonify(message_list), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+        
+    except Exception as e:
+            logging.error("Error in /messages endpoint", exc_info=True)
+            return jsonify({'error': str(e)}), 500
 
 # For testing
 @app.route('/test', methods = ['POST'])
