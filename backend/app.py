@@ -1166,7 +1166,7 @@ def photo():
         photo_reference = data.get('photo_reference')
         image_data = b""
 
-        for chunk in gmap.places_photo(photo_reference, max_width=None, max_height=None):
+        for chunk in gmap.places_photo(photo_reference, max_width=400):
             if chunk:
                 image_data += chunk
 
@@ -1176,6 +1176,7 @@ def photo():
 
     except Exception as e:
         print(f"Error: Failed - {str(e)}")
+        return jsonify({"error": f"Failed to retrieve photo: {str(e)}"}), 500
 
 
 @app.route('/scan', methods = ['POST'])
@@ -1194,7 +1195,7 @@ def scan():
         # else:
         #     address = location  # Fallback to coordinates if geocoding fails
 
-        if (data.get['is_distance'] == False):
+        if data.get('is_distance') == False:
             places_result = gmap.places_nearby(
                 location=(lat, lng),
                 rank_by='distance',  # This will sort by distance automatically
@@ -1219,7 +1220,7 @@ def scan():
 
         if places_result.get('results'):
             for place in places_result['results']:
-                all_locations.append([place['name'], place['geometry']['location'], place['photos'][0]['photo_references']])
+                all_locations.append([place['name'], place['geometry']['location'], place['photos'][0]['photo_reference']])
 
         response_data = {
             'id': uuid.uuid4().hex,
