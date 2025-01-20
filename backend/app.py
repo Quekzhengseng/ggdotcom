@@ -802,8 +802,7 @@ def chat2():
             lat, lng = map(float, location.split(','))
 
             # Get address using Google Maps
-            selected_place = gmap.reverse_geocode((lat, lng))
-
+            selected_place = gmap.reverse_geocode((lat, lng))[0]['formatted_address']
 
             try:
                 # Check if it already has the prefix
@@ -903,7 +902,7 @@ def chat2():
             lat, lng = map(float, location.split(','))
 
             # Get address using Google Maps
-            selected_place = gmap.reverse_geocode((lat, lng))
+            selected_place = gmap.reverse_geocode((lat, lng))[0]['formatted_address']
 
             context = get_rag_information(selected_place)
             print("ADDED CONTEXT", context)
@@ -985,7 +984,7 @@ def chat2():
             lat, lng = map(float, location.split(','))
 
             # Get address using Google Maps
-            selected_place = gmap.reverse_geocode((lat, lng))
+            selected_place = gmap.reverse_geocode((lat, lng))[0]['formatted_address']
 
             context = get_rag_information(selected_place)
             print("ADDED CONTEXT", context)
@@ -1082,7 +1081,7 @@ def chat2():
             lat, lng = map(float, location.split(','))
 
             # Get address using Google Maps
-            selected_place = gmap.reverse_geocode((lat, lng))
+            selected_place = gmap.reverse_geocode((lat, lng))[0]['formatted_address']
 
             # context = get_rag_information(selected_place)
             # print("ADDED CONTEXT", context)
