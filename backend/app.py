@@ -1309,18 +1309,8 @@ async def retrieve():
 async def retrieve2(request: LocationRequest):
     try:
         # Build the base query
-        query = db.collection('tour').document("yDLsVQhwoDF9ZHoG0Myk").collection('messages2')
-        
-        # Add location filter if provided
-        if request.location:
-            query = query.where('location', '==', request.location)
+        messages = db.collection('tour').document("yDLsVQhwoDF9ZHoG0Myk").collection('messages2').where('location', '==', request.location).order_by('timestamp', direction='DESCENDING').stream
             
-        # Add ordering and execute
-        messages = await run_sync_in_background(
-            query.order_by('timestamp', direction='DESCENDING')
-            .stream
-        )
-        
         # Process messages with timestamp handling
         message_list = []
         for msg in messages:
