@@ -1258,13 +1258,33 @@ async def scan(request: ScanRequest):
             )
         
         all_locations = []
+
         if places_result.get('results'):
             for place in places_result['results']:
-                all_locations.append([
-                    place['name'], 
-                    place['geometry']['location'], 
-                    place['photos'][0]['photo_reference']
-                ])
+                try:
+                    # Check and get required fields with defaults
+                    name = place.get('name', 'Unknown Location')
+                    location = place.get('geometry', {}).get('location', {'lat': 0, 'lng': 0})
+                    
+                    # Handle photo reference with extra care
+                    photo_ref = ''
+                    if ('photos' in place and 
+                        isinstance(place['photos'], list) and 
+                        len(place['photos']) > 0 and 
+                        'photo_reference' in place['photos'][0]):
+                        photo_ref = place['photos'][0]['photo_reference']
+
+                    # Only append if we have at least a name and location
+                    if name != 'Unknown Location' and location != {'lat': 0, 'lng': 0}:
+                        all_locations.append([
+                            name,
+                            location,
+                            photo_ref
+                        ])
+                
+                except Exception as e:
+                    print(f"Error processing place: {str(e)}")
+                    continue  # Skip this place and continue with the next one
 
         return {
             'id': str(uuid.uuid4()),
