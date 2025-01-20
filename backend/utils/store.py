@@ -8,59 +8,189 @@ from datetime import datetime
 import requests
 import json
 from dotenv import load_dotenv
+from contextlib import asynccontextmanager
 
 load_dotenv()
 import openai
 
 class WeaviateStore:
+
     def __init__(self):
-        weaviate_url = os.environ["WEAVIATE_URL"]
-        weaviate_api_key = os.environ["WEAVIATE_API_KEY"]
+        self.weaviate_url = os.environ["WEAVIATE_URL"]
+        self.weaviate_api_key = os.environ["WEAVIATE_API_KEY"]
         self.client = weaviate.connect_to_weaviate_cloud(
-            cluster_url=weaviate_url,
-            auth_credentials=Auth.api_key(weaviate_api_key),
+            cluster_url=self.weaviate_url,
+            auth_credentials=Auth.api_key(self.weaviate_api_key),
             headers={"X-OpenAI-Api-Key": os.getenv("OPENAI_API_KEY")}
         )
-        self._create_collections()
 
-    def _create_collections(self):
+
+    ## ASYNC CODE
+    # def __init__(self):
+    #     self.weaviate_url = os.environ["WEAVIATE_URL"]
+    #     self.weaviate_api_key = os.environ["WEAVIATE_API_KEY"]
+    #     self.client = None
+    #     self._setup_client()
+
+    # def _setup_client(self):
+    #     """Initialize the async client without connecting"""
+    #     self.client = weaviate.use_async_with_weaviate_cloud(
+    #         cluster_url=self.weaviate_url,
+    #         auth_credentials=Auth.api_key(self.weaviate_api_key),
+    #         headers={"X-OpenAI-Api-Key": os.getenv("OPENAI_API_KEY")}
+    #     )
+
+    # async def close(self):
+    #     """Async close method"""
+    #     if self.client:
+    #         try:
+    #             await self.client.close()
+    #             self.client = None
+    #             logging.info("Weaviate client connection closed.")
+    #         except Exception as e:
+    #             logging.error(f"Error closing client: {e}")
+    #             raise
+
+    # def sync_close(self):
+    #     """Synchronous close method for non-async contexts"""
+    #     if self.client:
+    #         try:
+    #             import asyncio
+    #             loop = asyncio.new_event_loop()
+    #             asyncio.set_event_loop(loop)
+    #             loop.run_until_complete(self.close())
+    #             loop.close()
+    #         except Exception as e:
+    #             logging.error(f"Error in sync_close: {e}")
+    #             raise
+    #         finally:
+    #             self.client = None
+
+    def _ensure_collections(self):
         """Create collections if they don't exist"""
-        try:
-            # Schema for both collections
-            collection_schema = {
-                "properties": [
-                    {"name": "text", "dataType": ["text"]},
-                    {"name": "place_id", "dataType": ["text"]},
-                    {"name": "name", "dataType": ["text"]},
-                    {"name": "category", "dataType": ["text"]},
-                    {"name": "source", "dataType": ["text"]},
-                    {"name": "fact_type", "dataType": ["text"]},
-                    {"name": "last_verified", "dataType": ["date"]},
-                    {"name": "source_url", "dataType": ["text"]},
-                    {"name": "has_scrape_content", "dataType": ["boolean"]},
-                    {"name": "location", "dataType": ["text"]},
-                    {"name": "attraction_type", "dataType": ["text"]}
-                ],
-                "vectorIndexConfig": {
-                    "distance": "cosine"
-                },
-                "vectorizer": "none"  # Set vectorizer to none for manual vector management
-            }
+        collection_schema = {
+            "properties": [
+                {"name": "text", "dataType": ["text"]},
+                {"name": "place_id", "dataType": ["text"]},
+                {"name": "name", "dataType": ["text"]},
+                {"name": "category", "dataType": ["text"]},
+                {"name": "source", "dataType": ["text"]},
+                {"name": "fact_type", "dataType": ["text"]},
+                {"name": "last_verified", "dataType": ["date"]},
+                {"name": "source_url", "dataType": ["text"]},
+                {"name": "has_scrape_content", "dataType": ["boolean"]},
+                {"name": "location", "dataType": ["text"]},
+                {"name": "attraction_type", "dataType": ["text"]}
+            ],
+            "vectorIndexConfig": {
+                "distance": "cosine"
+            },
+            "vectorizer": "none"
+        }
 
-            # Create or check both collections
-            for collection_name in ["WikipediaCollection", "SingaporeAttraction"]:
-                try:
-                    schema = collection_schema.copy()
-                    schema["class"] = collection_name
-                    
-                    existing_collection = self.client.collections.get(collection_name)
-                    logging.info(f"Collection '{collection_name}' already exists.")
-                except weaviate.exceptions.WeaviateCollectionNotFoundException:
-                    self.client.schema.create_class(schema)
-                    logging.info(f"Collection '{collection_name}' created successfully.")
+        for collection_name in ["WikipediaCollection", "SingaporeAttraction"]:
+            try:
+                schema = collection_schema.copy()
+                schema["class"] = collection_name
+                collection = self.client.collections.get(collection_name)
+                logging.info(f"Collection '{collection_name}' already exists.")
+            except weaviate.exceptions.WeaviateCollectionNotFoundException:
+                self.client.collections.create(schema)
+                logging.info(f"Collection '{collection_name}' created successfully.")
+
+    async def connect(self):
+        """Connect to Weaviate and ensure collections exist"""
+        await self.client.connect()
+        await self._ensure_collections()
+
+    def search_hybrid(self, collection_name: str, query: str, alpha: float = 0.5, limit: int = 5):
+        """Simple hybrid search"""
+        try:
+            # Generate embedding
+            response = openai.embeddings.create(
+                model="text-embedding-ada-002",
+                input=query
+            )
+            query_vector = response.data[0].embedding
+            
+            collection = self.client.collections.get(collection_name)
+            return collection.query.hybrid(
+                query=query,
+                vector=query_vector,
+                alpha=alpha,
+                limit=limit,
+                return_metadata=["score", "distance", "certainty"]
+            )
         except Exception as e:
-            logging.error(f"Error creating collections: {e}")
-            raise
+            logging.error(f"Search error: {e}")
+            return None
+
+    def close(self):
+        """Simple synchronous close"""
+        if self.client:
+            try:
+                self.client.close()
+            except Exception as e:
+                logging.error(f"Close error: {e}")
+
+    # async def search_hybrid(self, collection_name: str, query: str, alpha: float = 0.5, limit: int = 5):
+    #         """Async hybrid search combining vector and keyword search"""
+    #         if not self.client:
+    #             logging.error("Client not initialized")
+    #             return None
+                
+    #         try:
+    #             # Generate embedding
+    #             response = await openai.embeddings.acreate(
+    #                 model="text-embedding-ada-002",
+    #                 input=query
+    #             )
+
+    #             if not response or not response.data:
+    #                 logging.error(f"Error generating embedding for query '{query}': No response data.")
+    #                 return None
+
+    #             query_vector = response.data[0].embedding
+                
+    #             # Get collection
+    #             try:
+    #                 collection = self.client.collections.get(collection_name)
+    #             except Exception as e:
+    #                 logging.error(f"Error getting collection {collection_name}: {e}")
+    #                 return None
+                    
+    #             if not collection:
+    #                 logging.error(f"Collection {collection_name} not found")
+    #                 return None
+
+    #             # Perform search with error checking
+    #             try:
+    #                 result = await collection.query.hybrid(
+    #                     query=query,
+    #                     vector=query_vector,
+    #                     alpha=alpha,
+    #                     limit=limit,
+    #                     return_metadata=["score", "explain_score", "distance", "certainty"]
+    #                 )
+    #                 return result
+    #             except Exception as e:
+    #                 logging.error(f"Error performing hybrid search: {e}")
+    #                 return None
+
+    #         except Exception as e:
+    #             logging.error(f"Error in search_hybrid: {e}")
+    #             return None
+
+
+    @asynccontextmanager
+    async def session(self):
+        """Context manager for handling connections"""
+        try:
+            await self.connect()
+            yield self
+        finally:
+            if self.client:
+                await self.close()
 
     def store_documents(self, collection_name: str, documents: List[Dict[str, Any]], embeddings_list: List[List[float]]) -> List[str]:
         """Store documents with their embeddings"""
@@ -134,31 +264,31 @@ class WeaviateStore:
             logging.error(f"Error in BM25 search: {e}")
             raise
 
-    def search_hybrid(self, collection_name: str, query: str, alpha: float = 0.5, limit: int = 5) -> dict:
-        """Hybrid search combining vector and keyword search"""
-        try:
-            # Generate embedding for query
-            response = openai.embeddings.create(
-                model="text-embedding-ada-002",
-                input=query
-            )
-            query_vector = response.data[0].embedding
+    # def search_hybrid(self, collection_name: str, query: str, alpha: float = 0.5, limit: int = 5) -> dict:
+    #     """Hybrid search combining vector and keyword search"""
+    #     try:
+    #         # Generate embedding for query
+    #         response = openai.embeddings.create(
+    #             model="text-embedding-ada-002",
+    #             input=query
+    #         )
+    #         query_vector = response.data[0].embedding
             
-            collection = self.client.collections.get(collection_name)
+    #         collection = self.client.collections.get(collection_name)
             
-            # Perform hybrid search with both query text and vector
-            result = collection.query.hybrid(
-                query=query,
-                vector=query_vector,  # Provide the vector explicitly
-                alpha=alpha,
-                limit=limit,
-                return_metadata=["score", "explain_score", "distance", "certainty"]
-            )
-            return result
+    #         # Perform hybrid search with both query text and vector
+    #         result = collection.query.hybrid(
+    #             query=query,
+    #             vector=query_vector,  # Provide the vector explicitly
+    #             alpha=alpha,
+    #             limit=limit,
+    #             return_metadata=["score", "explain_score", "distance", "certainty"]
+    #         )
+    #         return result
 
-        except Exception as e:
-            logging.error(f"Error in hybrid search: {e}")
-            raise
+    #     except Exception as e:
+    #         logging.error(f"Error in hybrid search: {e}")
+    #         raise
 
 
 
@@ -194,22 +324,22 @@ class WeaviateStore:
             logging.error(f"Error retrieving documents: {e}")
             raise
 
-    def clear_collection(self, collection_name: str) -> bool:
-        """Clear all documents from specified collection"""
-        try:
-            collection = self.client.collections.get(collection_name)
-            result = collection.data.delete_many(where={})
+    # def clear_collection(self, collection_name: str) -> bool:
+    #     """Clear all documents from specified collection"""
+    #     try:
+    #         collection = self.client.collections.get(collection_name)
+    #         result = collection.data.delete_many(where={})
             
-            if result.get("deleted", 0) > 0:
-                logging.info(f"Successfully cleared collection {collection_name}")
-                return True
-            else:
-                logging.warning(f"No documents were deleted from {collection_name}")
-                return False
+    #         if result.get("deleted", 0) > 0:
+    #             logging.info(f"Successfully cleared collection {collection_name}")
+    #             return True
+    #         else:
+    #             logging.warning(f"No documents were deleted from {collection_name}")
+    #             return False
 
-        except Exception as e:
-            logging.error(f"Error clearing collection: {e}")
-            raise
+    #     except Exception as e:
+    #         logging.error(f"Error clearing collection: {e}")
+    #         raise
 
     def close(self):
         """Close the Weaviate client connection"""
