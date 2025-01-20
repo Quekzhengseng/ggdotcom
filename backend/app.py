@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
@@ -53,6 +53,9 @@ class ScanRequest(BaseModel):
 
 class PhotoRequest(BaseModel):
     photo_reference: str
+
+class PhotoResponse(BaseModel):
+    base64_image: str
 
 # Firebase initialization
 bucket_name = 'ggdotcom-254aa.firebasestorage.app'
@@ -1204,17 +1207,27 @@ async def chat2(request: ChatRequest):
                 store.close()  # Note the await here
 
 # @app.route('/image', methods = ['POST'])
-@app.route("/image")
-async def photo(request: PhotoRequest):
+@app.route("/image", methods=["POST"])
+async def photo(        
+        photo_reference: str = Header(..., description="Google Places photo reference"),
+        max_width: Optional[int] = Header(400, description="Maximum width of the image") 
+                ) -> PhotoResponse:
     try:
-        image_data = b""
+
+        image_data = bytearray()
         
-        # Note: gmap.places_photo could be made async in the future
-        for chunk in gmap.places_photo(request.photo_reference, max_width=400):
+        for chunk in gmap.places_photo(
+            photo_reference=photo_reference,
+            max_width=max_width
+        ):
             if chunk:
-                image_data += chunk
+                image_data.extend(chunk)
+                
+        if not image_data:
+            raise ValueError("No image data received")
 
         base64_image = base64.b64encode(image_data).decode('utf-8')
+
         return {"base64_image": base64_image}
 
     except Exception as e:
