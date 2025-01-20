@@ -412,7 +412,7 @@ async def chat(request: ChatRequest):
                 #Get by distance instead
                 places_result = gmap.places_nearby(
                     location=(lat, lng),
-                    rank_by='distance',  # This will sort by distance automatically
+                    radius = 500,
                     type=['tourist_attraction', 'museum', 'art_gallery', 'park', 'shopping_mall', 
                         'hindu_temple', 'church', 'mosque', 'place_of_worship', 
                         'amusement_park', 'aquarium', 'zoo', 
@@ -679,7 +679,7 @@ async def chat(request: ChatRequest):
                 #Get by distance instead
                 places_result = gmap.places_nearby(
                     location=(lat, lng),
-                    rank_by='distance',  # This will sort by distance automatically
+                    radius = 500,
                     type=['tourist_attraction', 'museum', 'art_gallery', 'park', 'shopping_mall', 
                         'hindu_temple', 'church', 'mosque', 'place_of_worship', 
                         'amusement_park', 'aquarium', 'zoo', 
@@ -1232,6 +1232,9 @@ async def chat2(request: ChatRequest):
 async def scan(request: ScanRequest):
     try:
         lat, lng = map(float, request.location.split(','))
+        print(f"Latitude: {lat}")
+        print(f"Longitude: {lng}")
+        print(f"Is distance-based: {request.is_distance}")
         
         if request.is_distance:
             places_result = gmap.places_nearby(
