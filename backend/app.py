@@ -1273,14 +1273,38 @@ async def retrieve():
             .order_by('timestamp', direction='DESCENDING')
             .stream
         )
-        message_list = [msg.to_dict() for msg in messages]
+        
+        message_list = []
+        for msg in messages:
+            msg_dict = msg.to_dict()
+            
+            # Handle timestamp conversion
+            if 'timestamp' in msg_dict and msg_dict['timestamp'] is not None:
+                timestamp = msg_dict['timestamp']
+                # Convert to ISO format string if it has timestamp method
+                if hasattr(timestamp, 'timestamp'):
+                    msg_dict['timestamp'] = datetime.fromtimestamp(
+                        timestamp.timestamp()
+                    ).isoformat()
+                # Fallback for other datetime-like objects
+                elif hasattr(timestamp, 'isoformat'):
+                    msg_dict['timestamp'] = timestamp.isoformat()
+                else:
+                    msg_dict['timestamp'] = str(timestamp)
+            
+            message_list.append(msg_dict)
+            
         return JSONResponse(content=message_list)
+        
     except Exception as e:
         logging.error(f"Error in /messages endpoint: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Failed to retrieve messages: {str(e)}"
+        )
 
-@app.get("/messages2")
-async def retrieve2(request: locationRequest):
+@app.post("/messages2")
+async def retrieve2(request: LocationRequest):
     try:
         # Build the base query
         query = db.collection('tour').document("yDLsVQhwoDF9ZHoG0Myk").collection('messages')
@@ -1295,11 +1319,35 @@ async def retrieve2(request: locationRequest):
             .stream
         )
         
-        message_list = [msg.to_dict() for msg in messages]
+        # Process messages with timestamp handling
+        message_list = []
+        for msg in messages:
+            msg_dict = msg.to_dict()
+            
+            # Handle timestamp conversion
+            if 'timestamp' in msg_dict and msg_dict['timestamp'] is not None:
+                timestamp = msg_dict['timestamp']
+                # Convert to ISO format string if it has timestamp method
+                if hasattr(timestamp, 'timestamp'):
+                    msg_dict['timestamp'] = datetime.fromtimestamp(
+                        timestamp.timestamp()
+                    ).isoformat()
+                # Fallback for other datetime-like objects
+                elif hasattr(timestamp, 'isoformat'):
+                    msg_dict['timestamp'] = timestamp.isoformat()
+                else:
+                    msg_dict['timestamp'] = str(timestamp)
+            
+            message_list.append(msg_dict)
+        
         return JSONResponse(content=message_list)
+        
     except Exception as e:
-        logging.error(f"Error in /messages endpoint: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.error(f"Error in /messages2 endpoint: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve messages: {str(e)}"
+        )
 
 
 @app.post("/image", response_model=PhotoResponse)
