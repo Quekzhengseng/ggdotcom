@@ -1150,8 +1150,8 @@ async def chat2(request: ChatRequest):
             # Get address using Google Maps
             selected_place = gmap.reverse_geocode((lat, lng))[0]['formatted_address']
 
-            # context = get_rag_information(selected_place)
-            # print("ADDED CONTEXT", context)
+            context = get_rag_information(selected_place)
+            print("ADDED CONTEXT", context)
 
             # Add address to prompt
             prompt = f"""
