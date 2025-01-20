@@ -1322,7 +1322,7 @@ async def retrieve():
 async def retrieve2(request: LocationRequest):
     try:
         # Build the base query
-        messages = db.collection('tour').document("yDLsVQhwoDF9ZHoG0Myk").collection('messages2').where('location', '==', request.location).order_by('timestamp', direction='DESCENDING').stream
+        messages = db.collection('tour').document("yDLsVQhwoDF9ZHoG0Myk").collection('messages2').where('location', '==', request.location).order_by('timestamp', direction='DESCENDING').stream()
             
         # Process messages with timestamp handling
         message_list = []
