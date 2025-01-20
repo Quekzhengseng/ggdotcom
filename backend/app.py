@@ -1322,10 +1322,9 @@ async def audio(request: AudioRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 # for uptimerobot ping to keep server active
-@app.head("/ping")
-@app.head("/ping/{path:path}")
-async def ping(path: str = ""):
-    return JSONResponse(content={"message": "Yes"})
+@app.api_route("/ping", methods=["GET", "HEAD"])
+async def ping():
+    return {"message": "Service is up!"}
 
 # Configure for gunicorn
 if __name__ == "__main__":
