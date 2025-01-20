@@ -1327,12 +1327,17 @@ async def ping():
     return {"message": "Service is up!"}
 
 # Configure for gunicorn
+# if __name__ == "__main__":
+#     # If running directly
+#     # port = int(os.environ.get("PORT", 10000))
+#     # app.run(host="0.0.0.0", port=port)
+#     import uvicorn
+#     uvicorn.run(app, host="0.0.0.0", port=8000)
+
 if __name__ == "__main__":
-    # If running directly
-    # port = int(os.environ.get("PORT", 10000))
-    # app.run(host="0.0.0.0", port=port)
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", 10000))
+    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)
 
 else:
     # For gunicorn
