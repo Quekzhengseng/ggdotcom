@@ -2,7 +2,7 @@
   <div class="flex flex-col h-screen bg-white">
     <header class="flex flex-col items-center justify-between bg-white p-4 shadow-md">
       <div class="flex items-center justify-between w-full">
-        <router-link to="/" class="flex items-center text-red-600 hover:text-red-700 font-semibold text-lg">
+        <router-link to="/selection" class="flex items-center text-red-600 hover:text-red-700 font-semibold text-lg">
           ← back
         </router-link>
         <p class="text-lg font-medium text-gray-800">
