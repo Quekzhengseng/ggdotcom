@@ -22,7 +22,7 @@ import uvicorn
 
 # Firebase related imports
 from firebase_admin import firestore
-from google._cloud_core.datetime_helpers import DatetimeWithNanoseconds
+from google.api_core.datetime_helpers import DatetimeWithNanoseconds
 from firebase_init import initialize_firebase
 
 # Custom utils imports
