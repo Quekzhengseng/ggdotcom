@@ -69,6 +69,9 @@ class PhotoRequest(BaseModel):
 class PhotoResponse(BaseModel):
     base64_image: str
 
+class locationRequest(BaseModel):
+    location: str
+
 # Firebase initialization
 bucket_name = 'ggdotcom-254aa.firebasestorage.app'
 firebase_app = initialize_firebase(bucket_name)
@@ -1276,9 +1279,31 @@ async def retrieve():
         logging.error(f"Error in /messages endpoint: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/messages2")
+async def retrieve2(request: locationRequest):
+    try:
+        # Build the base query
+        query = db.collection('tour').document("yDLsVQhwoDF9ZHoG0Myk").collection('messages')
+        
+        # Add location filter if provided
+        if request.location:
+            query = query.where('location', '==', request.location)
+            
+        # Add ordering and execute
+        messages = await run_sync_in_background(
+            query.order_by('timestamp', direction='DESCENDING')
+            .stream
+        )
+        
+        message_list = [msg.to_dict() for msg in messages]
+        return JSONResponse(content=message_list)
+    except Exception as e:
+        logging.error(f"Error in /messages endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/image", response_model=PhotoResponse)
-async def photo():
+async def photo(request: PhotoRequest):
     """
     Retrieve a photo from Google Places API and return it as a base64-encoded string.
     The photo reference should be provided in the request headers.
