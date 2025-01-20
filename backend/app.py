@@ -1132,7 +1132,7 @@ def photo():
         photo_reference = data.get('photo_reference')
         image_data = b""
 
-        for chunk in gmap.places_photo(photo_reference, max_width=None, max_height=None):
+        for chunk in gmap.places_photo(photo_reference, max_width=400):
             if chunk:
                 image_data += chunk
 
@@ -1142,6 +1142,7 @@ def photo():
 
     except Exception as e:
         print(f"Error: Failed - {str(e)}")
+        return jsonify({"error": f"Failed to retrieve photo: {str(e)}"}), 500
 
 
 @app.route('/scan', methods = ['POST'])
