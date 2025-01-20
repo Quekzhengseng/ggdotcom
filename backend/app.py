@@ -1324,8 +1324,8 @@ async def audio(request: AudioRequest):
 # for uptimerobot ping to keep server active
 @app.head("/ping")
 @app.head("/ping/{path:path}")
-async def ping_head(path: str = ""):
-    return {}
+async def ping(path: str = ""):
+    return JSONResponse(content={"message": "Yes"})
 
 # Configure for gunicorn
 if __name__ == "__main__":
