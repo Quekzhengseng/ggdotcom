@@ -17,20 +17,19 @@
   
           <div class="flex flex-col space-y-4">
             <!-- Begin Tour Button -->
-            <router-link to="/chat">
+            <router-link to="/mappage">
               <button 
                 class="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded w-36"
               >
-                Normal Tour
+                Map
               </button>
             </router-link>
-  
             <!-- Run Simulator Button -->
-            <router-link to="/simulator">
+            <router-link to="/mapsimulatorpage">
               <button 
                 class="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded w-48"
               >
-                Run Simulator
+                Map Simulator (not working yet)
               </button>
             </router-link>
             
