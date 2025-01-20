@@ -1,49 +1,79 @@
-# Initialise the modules
-from flask import Flask, request, jsonify, send_file
-from flask_cors import CORS
-import openai
-from firebase_admin import credentials, firestore, initialize_app
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, StreamingResponse
+from pydantic import BaseModel
+from typing import Optional, List, Dict, Any
+import uvicorn
+from functools import partial
+import asyncio
 from datetime import datetime
 import uuid
+import googlemaps
+import openai
 import io
+import base64
 import os
 import logging
-import googlemaps
-import firebase_admin
-from firebase_admin import credentials
-import requests
-from typing import List, Dict
+from firebase_admin import firestore
 from utils.RAG import rag_manager
-from firebase_init import initialize_firebase
 from utils.store import WeaviateStore
-import base64
+from firebase_init import initialize_firebase
 
 # Configure logging
 logging.basicConfig(level=logging.ERROR)
 
-# Initialize Flask app
-app = Flask(__name__)
-CORS(app)
+# Initialize FastAPI app
+app = FastAPI()
 
-# Firebase initialization - ensure it's only done once
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Pydantic models for request validation
+class ChatRequest(BaseModel):
+    location: Optional[str] = None
+    text: Optional[str] = None
+    image: Optional[str] = None
+    visitedPlaces: Optional[List[str]] = []
+
+class AudioRequest(BaseModel):
+    text: str
+
+class ImageRequest(BaseModel):
+    photo_reference: str
+
+class ScanRequest(BaseModel):
+    location: str
+    is_distance: Optional[bool] = False
+
+class PhotoRequest(BaseModel):
+    photo_reference: str
+
+# Firebase initialization
 bucket_name = 'ggdotcom-254aa.firebasestorage.app'
-firebase_app = initialize_firebase(bucket_name)  # Call the initialization function
+firebase_app = initialize_firebase(bucket_name)
 
 # Firestore Client
 db = firestore.client()
 
 store = WeaviateStore()
 
-#Initialize Google Maps Key
 gmap = googlemaps.Client(key=os.getenv("GOOGLE_API_KEY"))
-
-# Initialize OpenAI API key
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
-# Base Route
-@app.route('/')
-def home():
-    return "Tour Guide API is running!"
+async def run_sync_in_background(func, *args, **kwargs):
+    loop = asyncio.get_event_loop()
+    func_with_args = partial(func, *args, **kwargs)
+    return await loop.run_in_executor(None, func_with_args)
+
+@app.get("/")
+async def home():
+    return {"message": "Tour Guide API is running!"}
 
 #method to fetch rag context
 
@@ -171,20 +201,26 @@ def create_chat_messages(prompt: str, context: Dict[str, List[str]], is_image: b
     return messages
 
 # main route for frontend integration
-@app.route('/chat', methods=['POST'])
-
-def chat():
+@app.post("/chat")
+async def chat(request: ChatRequest):
     try:
         #fetch data from user
-        data = request.get_json()
+        location = request.location
+        image = request.image
+        text = request.text
+        visited_places = request.visitedPlaces or []
+
+        if not any([location, image, text]):
+            raise HTTPException(status_code=400, detail="No data provided")
+
+
         # Need factor cases with location, image (Base64)
         # if there is user input, add in to DB as well
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
+
         
-        location = data.get('location')
-        image = data.get('image')
-        text = data.get('text')
+        # location = data.get('location')
+        # image = data.get('image')
+        # text = data.get('text')
         print(f"Location: {location}")
         # print(f"Image: {image}")
         print(f"Text: {text}")
@@ -193,10 +229,10 @@ def chat():
         if location and text and image:
             try:
                 #Get text data
-                text_data = data.get('text')
+                text_data = text
 
                 #Get location data
-                location = data.get('location', "")
+                # location = data.get('location', "")
                 print(f"Location Received: {location}")
                 lat, lng = map(float, location.split(','))
 
@@ -213,7 +249,7 @@ def chat():
             except Exception as e:
                 print(f"Geocoding error: {str(e)}")
             
-            image_data = data.get('image')
+            image_data = image
 
             try:
                 # Check if it already has the prefix
@@ -327,17 +363,17 @@ def chat():
             except Exception as e:
                 print(f"Error: Failed to add to Firestore - {str(e)}")
 
-            return jsonify(response_data)
+            return JSONResponse(content=response_data)
         #END LOCATION WITH TEXT WITH IMAGE -------------------------------------------------------------
 
         #LOCATION WITH TEXT -------------------------------------------------------------
         elif location and text:
             try:
                 #Get text data
-                text_data = data.get('text')
+                text_data = text
 
                 #Get location data
-                location = data.get('location', "")
+                # location = data.get('location', "")
                 print(f"Location Received: {location}")
                 lat, lng = map(float, location.split(','))
 
@@ -474,14 +510,14 @@ def chat():
             except Exception as e:
                 print(f"Error: Failed to add to Firestore - {str(e)}")
 
-            return jsonify(response_data)
+            return JSONResponse(content=response_data)
         #END LOCATION WITH TEXT -------------------------------------------------------------
         
         #LOCATION WITH IMAGE CHECK ----------------------------------------
         elif location and image:
             try:
-                image_data = data.get('image')
-                location = data.get('location', "")
+                image_data = image
+                # location = data.get('location', "")
                 print(f"Location Received: {location}")
                 lat, lng = map(float, location.split(','))
 
@@ -586,14 +622,14 @@ def chat():
             except Exception as e:
                 print(f"Error: Failed to add to Firestore - {str(e)}")
 
-            return jsonify(response_data)
+            return JSONResponse(content=response_data)
         #END LOCATION WITH IMAGE -------------------------------------------------------------
 
         #PURE LOCATION CHECK ----------------------------------------------------------------
         else:
             try:
                 # Parse location string into lat, lng
-                location = data.get('location', "")
+                # location = data.get('location', "")
                 print(f"Location Received: {location}")
                 lat, lng = map(float, location.split(','))
                 
@@ -629,8 +665,8 @@ def chat():
                     language='en'
                 )
 
-                if data.get('visitedPlaces'):
-                    landmarks = data.get('visitedPlaces')
+                if visited_places:
+                    landmarks = visited_places
                 else:
                     landmarks = []
 
@@ -766,11 +802,12 @@ def chat():
             except Exception as e:
                 print(f"Error: Failed to add to Firestore - {str(e)}")
 
-            return jsonify(response_data)
+            return JSONResponse(content=response_data)
 
     except Exception as e:
         logging.error("Error in /chat endpoint", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse(content={'error': str(e)}, status_code=500)
+
     
     finally:
         # Close connections if any were opened during this request
@@ -778,20 +815,28 @@ def chat():
             store.close()
     #END PURE LOCATION CHECK ----------------------------------------------------------------
 
-@app.route('/chat2', methods = ['POST'])
-def chat2():
+
+
+
+@app.post("/chat2")
+async def chat2(request: ChatRequest):
 
     try:
             #fetch data from user
-        data = request.get_json()
         # Need factor cases with location, image (Base64)
         # if there is user input, add in to DB as well
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
+        location = request.location
+        image_data = request.image
+        text = request.text
+        visited_places = request.visitedPlaces or []
+
+        if not any([location, image_data, text]):
+            raise HTTPException(status_code=400, detail="No data provided")
+
         
-        location = data.get('location')
-        image_data = data.get('image')
-        text = data.get('text')
+        # location = data.get('location')
+        # image_data = data.get('image')
+        # text = data.get('text')
 
     except Exception as e:
         print(f"Error: Failed - {str(e)}")
@@ -886,7 +931,7 @@ def chat2():
             db.collection("tour").document("yDLsVQhwoDF9ZHoG0Myk")\
             .collection('messages2').add(message_data)
 
-            return jsonify(response_data)
+            return JSONResponse(content=response_data)
 
         except Exception as e:
             print(f"Error: Failed - {str(e)}")
@@ -968,7 +1013,7 @@ def chat2():
             db.collection("tour").document("yDLsVQhwoDF9ZHoG0Myk")\
             .collection('messages2').add(message_data)
 
-            return jsonify(response_data)
+            return JSONResponse(content=response_data)
 
         except Exception as e:
             print(f"Error: Failed - {str(e)}")
@@ -1065,7 +1110,7 @@ def chat2():
             db.collection("tour").document("yDLsVQhwoDF9ZHoG0Myk")\
             .collection('messages2').add(message_data)
 
-            return jsonify(response_data)
+            return JSONResponse(content=response_data)
 
 
         except Exception as e:
@@ -1158,313 +1203,138 @@ def chat2():
             if 'store' in locals():
                 store.close()  # Note the await here
 
-@app.route('/image', methods = ['POST'])
-def photo():
+# @app.route('/image', methods = ['POST'])
+@app.route("/image")
+async def photo(request: PhotoRequest):
     try:
-        data = request.get_json()
-        photo_reference = data.get('photo_reference')
         image_data = b""
-
-        for chunk in gmap.places_photo(photo_reference, max_width=400):
+        
+        # Note: gmap.places_photo could be made async in the future
+        for chunk in gmap.places_photo(request.photo_reference, max_width=400):
             if chunk:
                 image_data += chunk
 
         base64_image = base64.b64encode(image_data).decode('utf-8')
-
-        return jsonify(base64_image)
+        return {"base64_image": base64_image}
 
     except Exception as e:
-        print(f"Error: Failed - {str(e)}")
-        return jsonify({"error": f"Failed to retrieve photo: {str(e)}"}), 500
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve photo: {str(e)}"
+        )
 
-
-@app.route('/scan', methods = ['POST'])
-def scan():
+@app.post("/scan")
+async def scan(request: ScanRequest):
     try:
-        data = request.get_json()
-        location = data.get('location')
-        print(f"Location Received: {location}")
-        lat, lng = map(float, location.split(','))
+        lat, lng = map(float, request.location.split(','))
         
-        # # Get address using Google Maps
-        # gmaps_result = gmap.reverse_geocode((lat, lng))
-        
-        # if gmaps_result and len(gmaps_result) > 0:
-        #     address = gmaps_result[0]['formatted_address']
-        # else:
-        #     address = location  # Fallback to coordinates if geocoding fails
-
-        if data.get('is_distance') == False:
-            places_result = gmap.places_nearby(
-                location=(lat, lng),
-                rank_by='distance',  # This will sort by distance automatically
-                type=['tourist_attraction', 'museum', 'art_gallery', 'park', 'shopping_mall', 
-                    'hindu_temple', 'church', 'mosque', 'place_of_worship', 
-                    'amusement_park', 'aquarium', 'zoo', 
-                    'restaurant', 'cafe'],
-                language='en'
-            )
-        else:
-            places_result = gmap.places_nearby(
+        places_result = gmap.places_nearby(
             location=(lat, lng),
-            radius = 500,
+            rank_by='distance' if not request.is_distance else None,
+            radius=500 if request.is_distance else None,
             type=['tourist_attraction', 'museum', 'art_gallery', 'park', 'shopping_mall', 
-                'hindu_temple', 'church', 'mosque', 'place_of_worship', 
-                'amusement_park', 'aquarium', 'zoo', 
-                'restaurant', 'cafe'],
+                  'hindu_temple', 'church', 'mosque', 'place_of_worship', 
+                  'amusement_park', 'aquarium', 'zoo', 
+                  'restaurant', 'cafe'],
             language='en'
         )
         
         all_locations = []
-
         if places_result.get('results'):
             for place in places_result['results']:
-                all_locations.append([place['name'], place['geometry']['location'], place['photos'][0]['photo_reference']])
+                all_locations.append([
+                    place['name'], 
+                    place['geometry']['location'], 
+                    place['photos'][0]['photo_reference']
+                ])
 
-        response_data = {
-            'id': uuid.uuid4().hex,
+        return {
+            'id': str(uuid.uuid4()),
             'timestamp': datetime.now().isoformat(),
             'locations': all_locations,
         }
-        
-        return jsonify(response_data)
 
     except Exception as e:
-        print(f"Error: Failed to retrieve chat for walking tour - {str(e)}")
-
-
-@app.route('/messages', methods = ['GET'])
-def retrieve():
-    try:    
-        messages = db.collection('tour').document("yDLsVQhwoDF9ZHoG0Myk")\
-                    .collection('messages')\
-                    .order_by('timestamp', direction='DESCENDING' )\
-                    .stream()
-        
-        message_list = []
-
-        for msg in messages:
-            msg_data = msg.to_dict()
-            msg_data['id'] = msg.id
-            # Convert timestamp to string for JSON serialization
-            message_list.append(msg_data)
-        
-        return jsonify(message_list), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
-        
-    except Exception as e:
-            logging.error("Error in /messages endpoint", exc_info=True)
-            return jsonify({'error': str(e)}), 500
-
-
-@app.route('/messages2', methods = ['POST'])
-def retrieve2():
-    try:    
-        data = request.get_json()
-        location_filter = data.get('location')
-
-        messages = (
-                db.collection('tour')
-                .document("yDLsVQhwoDF9ZHoG0Myk")
-                .collection('messages2')
-                .where('location', '==', location_filter)  # Filter by location
-                .order_by('timestamp', direction='DESCENDING')
-                .stream()
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Failed to retrieve scan results: {str(e)}"
         )
 
-        message_list = []
 
-        for msg in messages:
-            msg_data = msg.to_dict()
-            location = msg_data.get("location")  # Extract the location from the message
-            chatlog = msg_data.get("Chatlog")   # Extract the chatlog text
-            is_user = msg_data.get("isUser")    # Extract whether it’s a user message
-
-            if not location or not chatlog or is_user is None:
-                continue  # Skip invalid entries
-
-                # Create a new list for the location if it doesn't exist
-            if location not in message_list:
-                message_list[location] = []
-            
-            # Add the chatlog data to the location's list
-            message_list[location].append({
-                "Chatlog": chatlog,
-                "isUser": is_user
-            })
-        
-        return jsonify(message_list), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
-        
-    except Exception as e:
-            logging.error("Error in /messages endpoint", exc_info=True)
-            return jsonify({'error': str(e)}), 500
-
-# For testing
-@app.route('/test', methods = ['POST'])
-def test():
+@app.get("/messages")
+async def retrieve():
     try:
-        data = request.get_json()
-        # Need factor cases with location, image (Base64)
-        # if there is user input, add in to DB as well
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
-        
-        text = data.get('text')
-        print(f"Text: {text}")
-
-        # TEXT
-        if text:
-            try:
-                #Get text data
-                text_data = data.get('text')
-
-            except Exception as e:
-                print(f"Text retrieval error: {str(e)}")
-            
-
-            #Initalize prompt with text
-            prompt = f"""{text_data}"""
-
-
-
-            print(prompt)
-            
-            # DEPRECIATED
-            # try:
-            #     # create USER msg data for firestore
-            #     message_data = {
-            #         'timestamp': datetime.now(),
-            #         'message_Id': "",
-            #         'chatText': text_data,
-            #         'image': "",
-            #         'location': '',
-            #         'userCheck': "true",
-            #     }
-
-            #     #Add to firestore
-            #     db.collection("tour").document("yDLsVQhwoDF9ZHoG0Myk")\
-            #     .collection('messages').add(message_data)
-                
-            #     print("Success: Added to Firestore")
-
-            # except Exception as e:
-            #     print(f"Error: Failed to add to Firestore - {str(e)}")
-
-            # Call OpenAI API
-
-            # context = get_rag_information(text_data)
-            # print("ADDED CONTEXT", context)
-
-            # messages = create_chat_messages(prompt, context)
-
-            response = openai.chat.completions.create(
-                model="gpt-4o-mini",
-                messages= messages,
-                
-                # DEPRECIATED
-                # [
-                #     {
-                #         "role": "user",
-                #         "content": [
-                #             {
-                #                 "type": "text",
-                #                 "text": prompt,
-                #             }, 
-                #         ],
-                #     },
-                # ],
-                max_tokens=500,
-                temperature=0
-            )
-
-            # Extract response text
-            response_text = response.choices[0].message.content
-
-            print(f"Response: {response_text}")
-
-            # Create response object
-            response_data = {
-                'id': uuid.uuid4().hex,
-                'timestamp': datetime.now().isoformat(),
-                'prompt': prompt,
-                'response': response_text
-            }
-
-            # DEPRECIATED
-            # try:
-            #     # create REPLY msg data for firestore
-            #     message_data = {
-            #         'timestamp': datetime.now(),
-            #         'message_Id': "",
-            #         'chatText': response_text,
-            #         'image': '',
-            #         'location': location,
-            #         'userCheck': "false",
-            #     }
-
-            #     #Add to firestore
-            #     db.collection("tour").document("yDLsVQhwoDF9ZHoG0Myk")\
-            #     .collection('messages').add(message_data)
-                
-            #     print("Success: Added to Firestore")
-            # except Exception as e:
-            #     print(f"Error: Failed to add to Firestore - {str(e)}")
-
-            return jsonify(response_data)
-        #END TEXT -------------------------------------------------------------
-
-    except Exception as e:
-        logging.error("Error in /test endpoint", exc_info=True)
-        return jsonify({'error': str(e)}), 500
-
-
-# endpoint to retrieve audio tts file
-@app.route('/audio', methods = ['POST'])
-def audio():
-    try:
-        #Retrieve text file
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
-        
-        text = data.get('text')
-
-        response = openai.audio.speech.create(
-            model="tts-1",
-            voice="alloy",
-            input= text,
+        messages = await run_sync_in_background(
+            db.collection('tour').document("yDLsVQhwoDF9ZHoG0Myk")
+            .collection('messages')
+            .order_by('timestamp', direction='DESCENDING')
+            .stream
         )
+        message_list = [msg.to_dict() for msg in messages]
+        return JSONResponse(content=message_list)
+    except Exception as e:
+        logging.error(f"Error in /messages endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/messages2")
+async def retrieve2():
+    try:
+        messages = await run_sync_in_background(
+            db.collection('tour').document("yDLsVQhwoDF9ZHoG0Myk")
+            .collection('messages2')
+            .order_by('timestamp', direction='DESCENDING')
+            .stream
+        )
+        message_list = [msg.to_dict() for msg in messages]
+        return JSONResponse(content=message_list)
+    except Exception as e:
+        logging.error(f"Error in /messages2 endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/test")
+async def test(request: ChatRequest):
+    try:
+        text = request.text
+        if not text:
+            return JSONResponse(content={"error": "No text provided"}, status_code=400)
+        response_data = {
+            "id": uuid.uuid4().hex,
+            "timestamp": datetime.now().isoformat(),
+            "text": text
+        }
+        return JSONResponse(content=response_data)
+    except Exception as e:
+        logging.error(f"Error in /test endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/audio")
+async def audio(request: AudioRequest):
+    try:
+        text = request.text
+        response = openai.Audio.create(model="tts-1", voice="alloy", input=text)
         audio_buffer = io.BytesIO()
-
         for chunk in response.iter_bytes():
             audio_buffer.write(chunk)
         audio_buffer.seek(0)
-
-        return send_file(
-            audio_buffer,
-            mimetype='audio/mpeg',
-            as_attachment=True,
-            download_name='speech.mp3'
-        )
-
+        return StreamingResponse(audio_buffer, media_type="audio/mpeg")
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logging.error(f"Error in /audio endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 # for uptimerobot ping to keep server active
-@app.route('/ping', defaults={'path': ''})
-@app.route('/ping<path:path>', methods=['HEAD'])
-def ping(path):
-    return 'Yes', 200
+@app.head("/ping")
+@app.head("/ping/{path:path}")
+async def ping(path: str = ""):
+    return {"message": "Yes"}
 
 # Configure for gunicorn
 if __name__ == "__main__":
     # If running directly
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    # port = int(os.environ.get("PORT", 10000))
+    # app.run(host="0.0.0.0", port=port)
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
 else:
     # For gunicorn
     application = app
