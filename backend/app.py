@@ -61,7 +61,7 @@ class ImageRequest(BaseModel):
 
 class ScanRequest(BaseModel):
     location: str
-    is_distance: Optional[bool] = False
+    is_distance: bool
 
 class PhotoRequest(BaseModel):
     photo_reference: str
