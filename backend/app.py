@@ -1275,29 +1275,23 @@ async def retrieve():
     except Exception as e:
         logging.error(f"Error in /messages endpoint: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-        
+
 
 @app.post("/image", response_model=PhotoResponse)
-async def photo(
-    photo_reference: str = Header(..., description="Google Places photo reference"),
-    max_width: Optional[int] = Header(400, description="Maximum width of the image")
-):
+async def photo():
     """
     Retrieve a photo from Google Places API and return it as a base64-encoded string.
     The photo reference should be provided in the request headers.
     """
-    try:
-        # Log the start of the request
-        logging.info(f"Processing photo request with reference: {photo_reference[:20]}...")
-        
+    try:    
         # Initialize image data buffer
         image_data = bytearray()
         
         # Retrieve photo chunks from Google Maps API
         try:
             for chunk in gmap.places_photo(
-                photo_reference=photo_reference,
-                max_width=max_width
+                photo_reference=request.photo_reference,
+                max_width=400
             ):
                 if chunk:
                     image_data.extend(chunk)
