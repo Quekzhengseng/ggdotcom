@@ -1222,35 +1222,6 @@ async def chat2(request: ChatRequest):
             if 'store' in locals():
                 store.close()  # Note the await here
 
-# @app.route('/image', methods = ['POST'])
-@app.route("/image", methods=["POST"])
-async def photo(        
-        photo_reference: str = Header(..., description="Google Places photo reference"),
-        max_width: Optional[int] = Header(400, description="Maximum width of the image") 
-                ) -> PhotoResponse:
-    try:
-
-        image_data = bytearray()
-        
-        for chunk in gmap.places_photo(
-            photo_reference=photo_reference,
-            max_width=max_width
-        ):
-            if chunk:
-                image_data.extend(chunk)
-                
-        if not image_data:
-            raise ValueError("No image data received")
-
-        base64_image = base64.b64encode(image_data).decode('utf-8')
-
-        return {"base64_image": base64_image}
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to retrieve photo: {str(e)}"
-        )
 
 @app.post("/scan")
 async def scan(request: ScanRequest):
@@ -1304,6 +1275,7 @@ async def retrieve():
     except Exception as e:
         logging.error(f"Error in /messages endpoint: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+        
 
 @app.post("/image", response_model=PhotoResponse)
 async def photo(
