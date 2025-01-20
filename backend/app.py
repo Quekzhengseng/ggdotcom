@@ -15,6 +15,7 @@ import base64
 import os
 import logging
 from firebase_admin import firestore
+from google.cloud.firestore import DatetimeWithNanoseconds
 from utils.RAG import rag_manager
 from utils.store import WeaviateStore
 from firebase_init import initialize_firebase
@@ -1294,7 +1295,7 @@ async def retrieve():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/messages2")
-async def retrieve2():
+async def retrieve2() -> List[Dict[Any, Any]]:
     try:
         messages = await run_sync_in_background(
             db.collection('tour').document("yDLsVQhwoDF9ZHoG0Myk")
@@ -1308,7 +1309,13 @@ async def retrieve2():
             msg_dict = msg.to_dict()
             # Convert timestamp to ISO format string
             if 'timestamp' in msg_dict:
-                msg_dict['timestamp'] = msg_dict['timestamp'].isoformat()
+                timestamp = msg_dict['timestamp']
+                if isinstance(timestamp, DatetimeWithNanoseconds):
+                    # Convert to regular datetime and then to ISO format
+                    msg_dict['timestamp'] = datetime.fromtimestamp(timestamp.timestamp()).isoformat()
+                elif isinstance(timestamp, datetime):
+                    msg_dict['timestamp'] = timestamp.isoformat()
+            
             message_list.append(msg_dict)
             
         return JSONResponse(content=message_list)
