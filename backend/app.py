@@ -770,7 +770,7 @@ async def chat(request: ChatRequest):
                 - Describe unique architectural features.
                 - Include interesting facts that make it special.
 
-                Start with "You see [Point of interest/Area name]" and keep the tone friendly and conversational, as if speaking to tourists in person. Don't mention exact addresses or coordinates. Use the RAG only if it directly mentions the landmark and matches the provided location. If the RAG does not match, ignore it entirely.
+                Start with "You see [Point of interest/Area name]" and keep the tone friendly and conversational, as if speaking to tourists in person. Don't mention exact addresses or coordinates. Use the RAG only if it directly mentions the landmark and matches the provided location. If the RAG does not match, ignore the rag entirely and talk about  {selected_place}.
                 """
 
             
@@ -1233,16 +1233,26 @@ async def scan(request: ScanRequest):
     try:
         lat, lng = map(float, request.location.split(','))
         
-        places_result = gmap.places_nearby(
-            location=(lat, lng),
-            rank_by='distance' if not request.is_distance else None,
-            radius=500 if request.is_distance else None,
-            type=['tourist_attraction', 'museum', 'art_gallery', 'park', 'shopping_mall', 
-                  'hindu_temple', 'church', 'mosque', 'place_of_worship', 
-                  'amusement_park', 'aquarium', 'zoo', 
-                  'restaurant', 'cafe'],
-            language='en'
-        )
+        if request.is_distance:
+            places_result = gmap.places_nearby(
+                location=(lat, lng),
+                rank_by='distance',
+                type=['tourist_attraction', 'museum', 'art_gallery', 'park', 'shopping_mall', 
+                    'hindu_temple', 'church', 'mosque', 'place_of_worship', 
+                    'amusement_park', 'aquarium', 'zoo', 
+                    'restaurant', 'cafe'],
+                language='en'
+            )
+        else:
+            places_result = gmap.places_nearby(
+                location=(lat, lng),
+                radius=500,
+                type=['tourist_attraction', 'museum', 'art_gallery', 'park', 'shopping_mall', 
+                    'hindu_temple', 'church', 'mosque', 'place_of_worship', 
+                    'amusement_park', 'aquarium', 'zoo', 
+                    'restaurant', 'cafe'],
+                language='en'
+            )
         
         all_locations = []
         if places_result.get('results'):
