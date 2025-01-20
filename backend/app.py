@@ -1305,11 +1305,11 @@ async def retrieve():
         logging.error(f"Error in /messages endpoint: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/image")
+@app.post("/image", response_model=PhotoResponse)
 async def photo(
     photo_reference: str = Header(..., description="Google Places photo reference"),
     max_width: Optional[int] = Header(400, description="Maximum width of the image")
-) -> JSONResponse:
+):
     """
     Retrieve a photo from Google Places API and return it as a base64-encoded string.
     The photo reference should be provided in the request headers.
@@ -1348,7 +1348,10 @@ async def photo(
         try:
             base64_image = base64.b64encode(image_data).decode('utf-8')
             logging.info("Successfully processed and encoded image")
-            return JSONResponse(content={"base64_image": base64_image})
+            
+            # Return response using Pydantic model
+            return PhotoResponse(base64_image=base64_image)
+            
         except Exception as encode_error:
             logging.error(f"Error encoding image data: {encode_error}")
             logging.error(traceback.format_exc())
@@ -1358,7 +1361,7 @@ async def photo(
             )
 
     except HTTPException:
-        raise  # Re-raise HTTP exceptions as they already have proper error details
+        raise
     except Exception as e:
         # Log unexpected errors with full traceback
         logging.error(f"Unexpected error in photo endpoint: {e}")
