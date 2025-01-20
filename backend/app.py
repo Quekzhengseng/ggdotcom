@@ -69,7 +69,7 @@ class PhotoRequest(BaseModel):
 class PhotoResponse(BaseModel):
     base64_image: str
 
-class locationRequest(BaseModel):
+class LocationRequest(BaseModel):
     location: str
 
 # Firebase initialization
