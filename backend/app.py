@@ -64,7 +64,11 @@ firebase_app = initialize_firebase(bucket_name)
 # Firestore Client
 db = firestore.client()
 
-store = WeaviateStore()
+try:
+    store = WeaviateStore()
+except Exception as e:
+    logging.error(f"Failed to initialize WeaviateStore: {e}")
+    store = None
 
 gmap = googlemaps.Client(key=os.getenv("GOOGLE_API_KEY"))
 openai.api_key = os.getenv('OPENAI_API_KEY')
@@ -1298,7 +1302,15 @@ async def retrieve2():
             .order_by('timestamp', direction='DESCENDING')
             .stream
         )
-        message_list = [msg.to_dict() for msg in messages]
+        # Convert timestamps to ISO format strings
+        message_list = []
+        for msg in messages:
+            msg_dict = msg.to_dict()
+            # Convert timestamp to ISO format string
+            if 'timestamp' in msg_dict:
+                msg_dict['timestamp'] = msg_dict['timestamp'].isoformat()
+            message_list.append(msg_dict)
+            
         return JSONResponse(content=message_list)
     except Exception as e:
         logging.error(f"Error in /messages2 endpoint: {e}", exc_info=True)
