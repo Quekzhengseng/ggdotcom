@@ -1216,6 +1216,8 @@ async def chat2(request: ChatRequest):
             db.collection("tour").document("yDLsVQhwoDF9ZHoG0Myk")\
             .collection('messages2').add(message_data)
 
+            return JSONResponse(response_data)
+
         except Exception as e:
             print(f"Error: Failed - {str(e)}")
 
@@ -1307,7 +1309,7 @@ async def retrieve():
 async def retrieve2(request: LocationRequest):
     try:
         # Build the base query
-        query = db.collection('tour').document("yDLsVQhwoDF9ZHoG0Myk").collection('messages')
+        query = db.collection('tour').document("yDLsVQhwoDF9ZHoG0Myk").collection('messages2')
         
         # Add location filter if provided
         if request.location:
