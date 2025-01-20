@@ -3,6 +3,9 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, H
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
+import logging
+import traceback
+from typing import Optional
 
 # Standard library imports
 from typing import Optional, List, Dict, Any
@@ -1302,42 +1305,68 @@ async def retrieve():
         logging.error(f"Error in /messages endpoint: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/messages2")
-async def retrieve2() -> List[Dict[Any, Any]]:
+@app.post("/image")
+async def photo(
+    photo_reference: str = Header(..., description="Google Places photo reference"),
+    max_width: Optional[int] = Header(400, description="Maximum width of the image")
+) -> JSONResponse:
+    """
+    Retrieve a photo from Google Places API and return it as a base64-encoded string.
+    The photo reference should be provided in the request headers.
+    """
     try:
-        messages = await run_sync_in_background(
-            db.collection('tour').document("yDLsVQhwoDF9ZHoG0Myk")
-            .collection('messages2')
-            .order_by('timestamp', direction='DESCENDING')
-            .stream
-        )
-        # Convert timestamps to ISO format strings
-        message_list = []
-        for msg in messages:
-            msg_dict = msg.to_dict()
-            # Handle timestamp conversion
-            if 'timestamp' in msg_dict and msg_dict['timestamp'] is not None:
-                # Convert Firestore timestamp to ISO format string
-                try:
-                    timestamp = msg_dict['timestamp']
-                    # Use timestamp method if available
-                    if hasattr(timestamp, 'timestamp'):
-                        msg_dict['timestamp'] = datetime.fromtimestamp(
-                            timestamp.timestamp()
-                        ).isoformat()
-                    # Fallback for other datetime-like objects
-                    elif hasattr(timestamp, 'isoformat'):
-                        msg_dict['timestamp'] = timestamp.isoformat()
-                except AttributeError:
-                    # If conversion fails, try to convert to string
-                    msg_dict['timestamp'] = str(timestamp)
-                    
-            message_list.append(msg_dict)
-            
-        return JSONResponse(content=message_list)
+        # Log the start of the request
+        logging.info(f"Processing photo request with reference: {photo_reference[:20]}...")
+        
+        # Initialize image data buffer
+        image_data = bytearray()
+        
+        # Retrieve photo chunks from Google Maps API
+        try:
+            for chunk in gmap.places_photo(
+                photo_reference=photo_reference,
+                max_width=max_width
+            ):
+                if chunk:
+                    image_data.extend(chunk)
+        except Exception as photo_error:
+            logging.error(f"Error retrieving photo from Google Maps API: {photo_error}")
+            logging.error(traceback.format_exc())
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to retrieve photo from Google Maps: {str(photo_error)}"
+            )
+                
+        if not image_data:
+            logging.error("No image data received from Google Maps API")
+            raise HTTPException(
+                status_code=404,
+                detail="No image data received from Google Maps API"
+            )
+
+        # Encode image data to base64
+        try:
+            base64_image = base64.b64encode(image_data).decode('utf-8')
+            logging.info("Successfully processed and encoded image")
+            return JSONResponse(content={"base64_image": base64_image})
+        except Exception as encode_error:
+            logging.error(f"Error encoding image data: {encode_error}")
+            logging.error(traceback.format_exc())
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to encode image data: {str(encode_error)}"
+            )
+
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions as they already have proper error details
     except Exception as e:
-        logging.error(f"Error in /messages2 endpoint: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        # Log unexpected errors with full traceback
+        logging.error(f"Unexpected error in photo endpoint: {e}")
+        logging.error(traceback.format_exc())
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
 
 @app.post("/test")
 async def test(request: ChatRequest):
