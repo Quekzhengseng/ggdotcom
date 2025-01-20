@@ -22,7 +22,6 @@ import uvicorn
 
 # Firebase related imports
 from firebase_admin import firestore
-from google.api_core.datetime_helpers import DatetimeWithNanoseconds
 from firebase_init import initialize_firebase
 
 # Custom utils imports
@@ -1316,15 +1315,23 @@ async def retrieve2() -> List[Dict[Any, Any]]:
         message_list = []
         for msg in messages:
             msg_dict = msg.to_dict()
-            # Convert timestamp to ISO format string
-            if 'timestamp' in msg_dict:
-                timestamp = msg_dict['timestamp']
-                if isinstance(timestamp, DatetimeWithNanoseconds):
-                    # Convert to regular datetime and then to ISO format
-                    msg_dict['timestamp'] = datetime.fromtimestamp(timestamp.timestamp()).isoformat()
-                elif isinstance(timestamp, datetime):
-                    msg_dict['timestamp'] = timestamp.isoformat()
-            
+            # Handle timestamp conversion
+            if 'timestamp' in msg_dict and msg_dict['timestamp'] is not None:
+                # Convert Firestore timestamp to ISO format string
+                try:
+                    timestamp = msg_dict['timestamp']
+                    # Use timestamp method if available
+                    if hasattr(timestamp, 'timestamp'):
+                        msg_dict['timestamp'] = datetime.fromtimestamp(
+                            timestamp.timestamp()
+                        ).isoformat()
+                    # Fallback for other datetime-like objects
+                    elif hasattr(timestamp, 'isoformat'):
+                        msg_dict['timestamp'] = timestamp.isoformat()
+                except AttributeError:
+                    # If conversion fails, try to convert to string
+                    msg_dict['timestamp'] = str(timestamp)
+                    
             message_list.append(msg_dict)
             
         return JSONResponse(content=message_list)
