@@ -221,8 +221,8 @@ def chat():
                 print(f"Error cleaning base64 image: {str(e)}")
                 raise ValueError("Invalid base64 image data")
 
-            context = get_rag_information(address)
-            print("ADDED CONTEXT", context)
+            # context = get_rag_information(address)
+            # print("ADDED CONTEXT", context)
 
             #Initalize prompt with text
             prompt = f"""You are a Singapore Tour Guide, please provide details regarding the text and photo that is given.
@@ -233,7 +233,7 @@ def chat():
 
             print(prompt)
             # Create messages with context
-            messages = create_chat_messages(prompt, context, is_image=True)
+            # messages = create_chat_messages(prompt, context, is_image=True)
                 
             try:
                 # create USER msg data for firestore
@@ -366,8 +366,8 @@ def chat():
             except Exception as e:
                 print(f"Geocoding error: {str(e)}")
             search_term = selected_place if selected_place else address
-            context = get_rag_information(search_term, text=text_data, lat=lat, lng=lng)
-            print("ADDED CONTEXT", context)
+            # context = get_rag_information(search_term, text=text_data, lat=lat, lng=lng)
+            # print("ADDED CONTEXT", context)
 
             # Initialise prompt
             prompt = f"""
@@ -397,7 +397,7 @@ def chat():
                 """
 
             print(prompt)
-            messages = create_chat_messages(prompt, context)
+            # messages = create_chat_messages(prompt, context)
                 
             try:
                 # create USER msg data for firestore
@@ -486,8 +486,8 @@ def chat():
 
             except Exception as e:
                 print(f"Geocoding error: {str(e)}")
-            search_term = selected_place if selected_place else address
-            context = get_rag_information(search_term, lat=lat, lng=lng)
+            # search_term = selected_place if selected_place else address
+            # context = get_rag_information(search_term, lat=lat, lng=lng)
             print("ADDED CONTEXT", context)
             #Initalize prompt with IMAGE
             prompt = f"""You are a Singapore Tour Guide, please provide details regarding the photo that is given.
@@ -496,7 +496,7 @@ def chat():
                 Include only what is given in the photo and describe in detail regarding history or context."""
 
 
-            messages = create_chat_messages(prompt, context, is_image=True, image_data=image_data)
+            # messages = create_chat_messages(prompt, context, is_image=True, image_data=image_data)
 
             try:
                 # Check if it already has the prefix
@@ -675,8 +675,8 @@ def chat():
             except Exception as e:
                 print(f"Geocoding error: {str(e)}")
 
-            context = get_rag_information(selected_place)
-            print("ADDED CONTEXT", context)
+            # context = get_rag_information(selected_place)
+            # print("ADDED CONTEXT", context)
 
             # Add address to prompt
             prompt = f"""
@@ -707,7 +707,7 @@ def chat():
             
             print("PROMPT", prompt)
 
-            messages = create_chat_messages(prompt, context)
+            # messages = create_chat_messages(prompt, context)
 
             # Call OpenAI API
             response = openai.chat.completions.create(
@@ -811,8 +811,8 @@ def chat2():
                 print(f"Error cleaning base64 image: {str(e)}")
                 raise ValueError("Invalid base64 image data")
 
-            context = get_rag_information(selected_place)
-            print("ADDED CONTEXT", context)
+            # context = get_rag_information(selected_place)
+            # print("ADDED CONTEXT", context)
 
             # Add address to prompt
             prompt = f"""
@@ -827,7 +827,7 @@ def chat2():
 
             print("PROMPT", prompt)
 
-            messages = create_chat_messages(prompt, context, is_image=True)
+            # messages = create_chat_messages(prompt, context, is_image=True)
 
             # Call OpenAI API
             response = openai.chat.completions.create(
@@ -888,8 +888,8 @@ def chat2():
             # Get address using Google Maps
             selected_place = gmap.reverse_geocode((lat, lng))
 
-            context = get_rag_information(selected_place)
-            print("ADDED CONTEXT", context)
+            # context = get_rag_information(selected_place)
+            # print("ADDED CONTEXT", context)
 
             # Add address to prompt
             prompt = f"""
@@ -903,7 +903,7 @@ def chat2():
 
             print("PROMPT", prompt)
 
-            messages = create_chat_messages(prompt, context)
+            # messages = create_chat_messages(prompt, context)
 
             # Call OpenAI API
             response = openai.chat.completions.create(
@@ -964,8 +964,8 @@ def chat2():
             # Get address using Google Maps
             selected_place = gmap.reverse_geocode((lat, lng))
 
-            context = get_rag_information(selected_place)
-            print("ADDED CONTEXT", context)
+            # context = get_rag_information(selected_place)
+            # print("ADDED CONTEXT", context)
 
             # Add address to prompt
             prompt = f"""
@@ -994,7 +994,7 @@ def chat2():
 
             print("PROMPT", prompt)
 
-            messages = create_chat_messages(prompt, context, is_image=True)
+            # messages = create_chat_messages(prompt, context, is_image=True)
 
             # Call OpenAI API
             response = openai.chat.completions.create(
@@ -1056,8 +1056,8 @@ def chat2():
             # Get address using Google Maps
             selected_place = gmap.reverse_geocode((lat, lng))
 
-            context = get_rag_information(selected_place)
-            print("ADDED CONTEXT", context)
+            # context = get_rag_information(selected_place)
+            # print("ADDED CONTEXT", context)
 
             # Add address to prompt
             prompt = f"""
@@ -1321,10 +1321,10 @@ def test():
 
             # Call OpenAI API
 
-            context = get_rag_information(text_data)
-            print("ADDED CONTEXT", context)
+            # context = get_rag_information(text_data)
+            # print("ADDED CONTEXT", context)
 
-            messages = create_chat_messages(prompt, context)
+            # messages = create_chat_messages(prompt, context)
 
             response = openai.chat.completions.create(
                 model="gpt-4o-mini",
