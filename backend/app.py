@@ -1,24 +1,33 @@
+# FastAPI and related imports
 from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
+
+# Standard library imports
 from typing import Optional, List, Dict, Any
-import uvicorn
 from functools import partial
-import asyncio
 from datetime import datetime
+import asyncio
 import uuid
-import googlemaps
-import openai
 import io
 import base64
 import os
 import logging
+
+# Third-party service imports
+import googlemaps
+import openai
+import uvicorn
+
+# Firebase related imports
 from firebase_admin import firestore
-from google.cloud.firestore import DatetimeWithNanoseconds
+from google._cloud_core.datetime_helpers import DatetimeWithNanoseconds
+from firebase_init import initialize_firebase
+
+# Custom utils imports
 from utils.RAG import rag_manager
 from utils.store import WeaviateStore
-from firebase_init import initialize_firebase
 
 # Configure logging
 logging.basicConfig(level=logging.ERROR)
