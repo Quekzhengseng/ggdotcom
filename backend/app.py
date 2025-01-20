@@ -46,68 +46,79 @@ def home():
     return "Tour Guide API is running!"
 
 #method to fetch rag context
+
 def get_rag_information(place_name: str, text: str = None, lat: float = None, lng: float = None) -> Dict[str, List[str]]:
-    """
-    Fetch contextual information using local RAG manager
-    
-    Args:
-        place_name: Could be an address, place name, or location name
-        text: Optional user query text to extract location mentions
-        lat: Optional latitude for location-based search
-        lng: Optional longitude for location-based search
-        
-    Returns:
-        Dict containing results from different sources
-    """
+    """Fetch contextual information"""
     try:
         search_terms = []
-        
-        # Extract location name from address if it's an address
         if ',' in place_name:
             location_parts = place_name.split(',')[0].strip()
             search_terms.append(location_parts)
         else:
             search_terms.append(place_name)
             
-        # If text query is provided, try to extract potential location names
         if text:
-            # Simple extraction - split by spaces and take phrases
             words = text.split()
             for i in range(len(words)-1):
-                if words[i][0].isupper():  # Look for capitalized words that might be place names
+                if words[i][0].isupper():
                     search_terms.append(f"{words[i]} {words[i+1]}")
-            # Also add single capitalized words
             search_terms.extend([word for word in words if word[0].isupper()])
         
-        # Remove duplicates while preserving order
         search_terms = list(dict.fromkeys(search_terms))
         logging.info(f"Searching RAG with terms: {search_terms}")
         
-        # Initialize results
         combined_results = {"wikipedia": [], "attractions": []}
         
-        # Try each search term
         for term in search_terms:
             results = rag_manager.query_place(term)
-            # Add unique results
-            for key in results:
-                existing_results = set(combined_results[key])
-                combined_results[key].extend([r for r in results[key] if r not in existing_results])
+            if results:
+                for key in results:
+                    existing_results = set(combined_results[key])
+                    combined_results[key].extend([r for r in results[key] if r not in existing_results])
         
-        # If no results found and coordinates are provided, try location-based search
-        if not any(combined_results.values()) and lat is not None and lng is not None:
-            location_results = rag_manager.query_by_location(lat, lng)
-            # Combine unique results
-            for key in combined_results:
-                existing_results = set(combined_results[key])
-                combined_results[key].extend([r for r in location_results.get(key, []) if r not in existing_results])
-        
-        logging.info(f"Found {len(combined_results.get('wikipedia', []))} Wikipedia results and {len(combined_results.get('attractions', []))} attraction results")
         return combined_results
         
     except Exception as e:
         logging.error(f"Error in RAG query: {str(e)}")
         return {"wikipedia": [], "attractions": []}
+    
+
+
+# async def get_rag_information(place_name: str, text: str = None, lat: float = None, lng: float = None) -> Dict[str, List[str]]:
+#     """Async function to fetch contextual information"""
+#     try:
+#         search_terms = []
+#         if ',' in place_name:
+#             location_parts = place_name.split(',')[0].strip()
+#             search_terms.append(location_parts)
+#         else:
+#             search_terms.append(place_name)
+            
+#         if text:
+#             words = text.split()
+#             for i in range(len(words)-1):
+#                 if words[i][0].isupper():
+#                     search_terms.append(f"{words[i]} {words[i+1]}")
+#             search_terms.extend([word for word in words if word[0].isupper()])
+        
+#         search_terms = list(dict.fromkeys(search_terms))
+#         logging.info(f"Searching RAG with terms: {search_terms}")
+        
+#         combined_results = {"wikipedia": [], "attractions": []}
+        
+#         # Ensure query_place is awaited correctly
+#         for term in search_terms:
+#             results = await rag_manager.query_place(term)
+#             if results:  # Check if results are not None or empty
+#                 for key in results:
+#                     existing_results = set(combined_results[key])
+#                     combined_results[key].extend([r for r in results[key] if r not in existing_results])
+        
+#         return combined_results
+        
+#     except Exception as e:
+#         logging.error(f"Error in RAG query: {str(e)}")
+#         return {"wikipedia": [], "attractions": []}
 
 #method to mix prompt with rag context
 def create_chat_messages(prompt: str, context: Dict[str, List[str]], is_image: bool = False, image_data: str = None) -> List[dict]:
@@ -221,8 +232,8 @@ def chat():
                 print(f"Error cleaning base64 image: {str(e)}")
                 raise ValueError("Invalid base64 image data")
 
-            # context = get_rag_information(address)
-            # print("ADDED CONTEXT", context)
+            context = get_rag_information(address)
+            print("ADDED CONTEXT", context)
 
             #Initalize prompt with text
             prompt = f"""You are a Singapore Tour Guide, please provide details regarding the text and photo that is given.
@@ -233,7 +244,7 @@ def chat():
 
             print(prompt)
             # Create messages with context
-            # messages = create_chat_messages(prompt, context, is_image=True)
+            messages = create_chat_messages(prompt, context, is_image=True)
                 
             try:
                 # create USER msg data for firestore
@@ -366,8 +377,8 @@ def chat():
             except Exception as e:
                 print(f"Geocoding error: {str(e)}")
             search_term = selected_place if selected_place else address
-            # context = get_rag_information(search_term, text=text_data, lat=lat, lng=lng)
-            # print("ADDED CONTEXT", context)
+            context = get_rag_information(search_term, text=text_data, lat=lat, lng=lng)
+            print("ADDED CONTEXT", context)
 
             # Initialise prompt
             prompt = f"""
@@ -397,7 +408,7 @@ def chat():
                 """
 
             print(prompt)
-            # messages = create_chat_messages(prompt, context)
+            messages = create_chat_messages(prompt, context)
                 
             try:
                 # create USER msg data for firestore
@@ -486,8 +497,8 @@ def chat():
 
             except Exception as e:
                 print(f"Geocoding error: {str(e)}")
-            # search_term = selected_place if selected_place else address
-            # context = get_rag_information(search_term, lat=lat, lng=lng)
+            search_term = selected_place if selected_place else address
+            context = get_rag_information(search_term, lat=lat, lng=lng)
             print("ADDED CONTEXT", context)
             #Initalize prompt with IMAGE
             prompt = f"""You are a Singapore Tour Guide, please provide details regarding the photo that is given.
@@ -496,7 +507,7 @@ def chat():
                 Include only what is given in the photo and describe in detail regarding history or context."""
 
 
-            # messages = create_chat_messages(prompt, context, is_image=True, image_data=image_data)
+            messages = create_chat_messages(prompt, context, is_image=True, image_data=image_data)
 
             try:
                 # Check if it already has the prefix
@@ -675,8 +686,8 @@ def chat():
             except Exception as e:
                 print(f"Geocoding error: {str(e)}")
 
-            # context = get_rag_information(selected_place)
-            # print("ADDED CONTEXT", context)
+            context = get_rag_information(selected_place)
+            print("ADDED CONTEXT", context)
 
             # Add address to prompt
             prompt = f"""
@@ -707,7 +718,7 @@ def chat():
             
             print("PROMPT", prompt)
 
-            # messages = create_chat_messages(prompt, context)
+            messages = create_chat_messages(prompt, context)
 
             # Call OpenAI API
             response = openai.chat.completions.create(
@@ -811,8 +822,8 @@ def chat2():
                 print(f"Error cleaning base64 image: {str(e)}")
                 raise ValueError("Invalid base64 image data")
 
-            # context = get_rag_information(selected_place)
-            # print("ADDED CONTEXT", context)
+            context = get_rag_information(selected_place)
+            print("ADDED CONTEXT", context)
 
             # Add address to prompt
             prompt = f"""
@@ -827,7 +838,7 @@ def chat2():
 
             print("PROMPT", prompt)
 
-            # messages = create_chat_messages(prompt, context, is_image=True)
+            messages = create_chat_messages(prompt, context, is_image=True)
 
             # Call OpenAI API
             response = openai.chat.completions.create(
@@ -880,6 +891,12 @@ def chat2():
 
         except Exception as e:
             print(f"Error: Failed - {str(e)}")
+
+        # In your chat endpoint finally block:
+        finally:
+            # Close connections if any were opened during this request
+            if 'store' in locals():
+                store.close()  # Note the await here
     elif location and text:
         try:
             print(f"Location Received: {location}")
@@ -888,8 +905,8 @@ def chat2():
             # Get address using Google Maps
             selected_place = gmap.reverse_geocode((lat, lng))
 
-            # context = get_rag_information(selected_place)
-            # print("ADDED CONTEXT", context)
+            context = get_rag_information(selected_place)
+            print("ADDED CONTEXT", context)
 
             # Add address to prompt
             prompt = f"""
@@ -903,7 +920,7 @@ def chat2():
 
             print("PROMPT", prompt)
 
-            # messages = create_chat_messages(prompt, context)
+            messages = create_chat_messages(prompt, context)
 
             # Call OpenAI API
             response = openai.chat.completions.create(
@@ -956,6 +973,12 @@ def chat2():
 
         except Exception as e:
             print(f"Error: Failed - {str(e)}")
+
+        # In your chat endpoint finally block:
+        finally:
+            # Close connections if any were opened during this request
+            if 'store' in locals():
+                store.close()  # Note the await here
     elif location and image_data:
         try:
             print(f"Location Received: {location}")
@@ -964,8 +987,8 @@ def chat2():
             # Get address using Google Maps
             selected_place = gmap.reverse_geocode((lat, lng))
 
-            # context = get_rag_information(selected_place)
-            # print("ADDED CONTEXT", context)
+            context = get_rag_information(selected_place)
+            print("ADDED CONTEXT", context)
 
             # Add address to prompt
             prompt = f"""
@@ -994,7 +1017,7 @@ def chat2():
 
             print("PROMPT", prompt)
 
-            # messages = create_chat_messages(prompt, context, is_image=True)
+            messages = create_chat_messages(prompt, context, is_image=True)
 
             # Call OpenAI API
             response = openai.chat.completions.create(
@@ -1048,6 +1071,11 @@ def chat2():
 
         except Exception as e:
             print(f"Error: Failed - {str(e)}")
+        # In your chat endpoint finally block:
+        finally:
+            # Close connections if any were opened during this request
+            if 'store' in locals():
+                store.close()  # Note the await here
     else:
         try:
             print(f"Location Received: {location}")
@@ -1124,6 +1152,12 @@ def chat2():
 
         except Exception as e:
             print(f"Error: Failed - {str(e)}")
+
+        # In your chat endpoint finally block:
+        finally:
+            # Close connections if any were opened during this request
+            if 'store' in locals():
+                store.close()  # Note the await here
 
 @app.route('/image', methods = ['POST'])
 def photo():
