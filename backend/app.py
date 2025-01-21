@@ -741,7 +741,14 @@ async def chat(request: ChatRequest):
                                             .limit(repeat)
                                             .stream()
                                                 )
+                    
+                    if repeated_messages:
+                        return
+                    else:
+                        repeated_messages = None
+                        
                     chat_texts = []
+                    
                     for message in repeated_messages:
                         chat_text = message.to_dict().get('chatText', "")
                         if chat_text:
