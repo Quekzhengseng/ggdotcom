@@ -298,6 +298,8 @@ async def chat(request: ChatRequest):
                 You are also given the user's address of {address} to provide more context in regards to the users location.
                 Do not mention the address in your answer.
                 Answer what is given in the user's text and photo and describe in detail regarding history or context that is applicable.
+                If the RAG does not match, completely ignore the rag entirely and talk about {selected_place}.
+                Do not mention about RAG at all.
                 Here is the Users text: {text_data}"""
 
             print(prompt)
@@ -441,11 +443,11 @@ async def chat(request: ChatRequest):
             # Initialise prompt
             prompt = f"""
                 Due to insufficient information in the RAG, if the location provided below differs greatly from the context in the RAG, completely disregard the RAG and craft original content about the provided location instead.
-
-                You are a friendly Singapore Tour Guide giving a walking tour. If {selected_place} matches with {address}, this means you are in a residential or developing area. 
-                If both are the same, you might have talked about this location already.
-                If empty, it means this is the first time you are talking about it.  
-                If not empty, do not state the same thing again. Talk about something else about the area.
+                You are a friendly Singapore Tour Guide giving a walking tour.
+                IF {selected_place}  matches {address}:
+                    TREAT_AS: residential_area
+                ELSE:
+                    TREAT_AS: tourist_landmark
 
                 For residential/developing areas:
                 - Focus exclusively on the neighborhood or district, disregarding unrelated RAG content.
@@ -461,6 +463,9 @@ async def chat(request: ChatRequest):
                 - Explain its cultural importance in Singapore.
                 - Describe unique architectural features.
                 - Include interesting facts that make it special.
+
+                If the RAG does not match, completely ignore the rag entirely and talk about {selected_place}.
+                Do not mention about RAG at all.
 
                 The user have asked a question here: {text_data} Answer what is given in the user's text and describe in detail regarding history or context that is applicable.
                 """
@@ -559,9 +564,13 @@ async def chat(request: ChatRequest):
             context = get_rag_information(search_term, lat=lat, lng=lng)
             print("ADDED CONTEXT", context)
             #Initalize prompt with IMAGE
-            prompt = f"""You are a Singapore Tour Guide, please provide details regarding the photo that is given.
+            prompt = f"""
+                You are a tour guide giving a tour in Singapore.
+                Use the RAG only if it directly mentions the landmark and matches the provided location. 
+                If the RAG does not match, completely ignore the rag entirely and talk about {selected_place}.
+                Do not mention about RAG at all.
                 You are also given the user's address of {address} to provide more context in regards to where the photo is taken.
-                Start by saying, You see [Point of interest]. Do not mention anything about the address in your answer.
+                Start by saying, You see [Point of interest] in the photo. Do not mention anything about the address in your answer.
                 Include only what is given in the photo and describe in detail regarding history or context."""
 
 
@@ -912,7 +921,8 @@ async def chat2(request: ChatRequest):
 
 
                 Answer the question that the tourist has asked here. {text} Use the RAG only if it directly mentions the landmark and matches the provided location. 
-                If the RAG does not match, ignore it entirely.
+                If the RAG does not match, completely ignore the rag entirely and talk about {selected_place}.
+                Do not mention about RAG at all.
                 """
 
             print("PROMPT", prompt)
@@ -991,10 +1001,26 @@ async def chat2(request: ChatRequest):
             prompt = f"""
                 Due to insufficient information in the RAG, if the location provided below differs greatly from the context in the RAG, completely disregard the RAG and craft original content about the provided location instead.
 
-                You are a friendly Singapore Tour Guide giving a walking tour. The place that the tourist has selected is {selected_place}. 
+                You are a friendly Singapore Tour Guide giving a walking tour. The place that the tourist has selected is {selected_place}. You are also provided with a question that the user has asked: {text}.
 
-                Answer the question that the tourist has asked here. {text} Use the RAG only if it directly mentions the landmark and matches the provided location. 
-                If the RAG does not match, ignore it entirely.
+                For residential/developing areas:
+                - Focus exclusively on the neighborhood or district, disregarding unrelated RAG content.
+                - Describe the most interesting aspects of the neighborhood or district you're in.
+                - Mention any nearby parks, nature areas, or community spaces.
+                - Include interesting facts about the area's development or future plans.
+                - Highlight what makes this area unique in Singapore.
+
+                For tourist landmarks:
+                - Name and describe the specific landmark.
+                - Share its historical significance and background.
+                - Explain its cultural importance in Singapore.
+                - Describe unique architectural features.
+                - Include interesting facts that make it special.
+
+                Answer the question that the user ask and keep the tone friendly and conversational, as if speaking to tourists in person.
+                Don't mention exact addresses or coordinates. Use the RAG only if it directly mentions the landmark and matches the provided location. 
+                If the RAG does not match, completely ignore the rag entirely and talk about {selected_place}.
+                Do not mention about RAG at all.
                 """
 
             print("PROMPT", prompt)
@@ -1091,7 +1117,8 @@ async def chat2(request: ChatRequest):
 
                 Start with "You see [Point of interest/Area name] in the photo" and keep the tone friendly and conversational, as if speaking to tourists in person.
                 Don't mention exact addresses or coordinates. Use the RAG only if it directly mentions the landmark and matches the provided location. 
-                If the RAG does not match, ignore it entirely.
+                If the RAG does not match, completely ignore the rag entirely and talk about {selected_place}.
+                Do not mention about RAG at all.
                 """
 
             print("PROMPT", prompt)
@@ -1188,7 +1215,8 @@ async def chat2(request: ChatRequest):
 
                 Start with "You see [Point of interest/Area name]" and keep the tone friendly and conversational, as if speaking to tourists in person.
                 Don't mention exact addresses or coordinates. Use the RAG only if it directly mentions the landmark and matches the provided location. 
-                If the RAG does not match, ignore it entirely.
+                If the RAG does not match, completely ignore the rag entirely and talk about {selected_place}.
+                Do not mention about RAG at all.
                 """
 
             print("PROMPT", prompt)
