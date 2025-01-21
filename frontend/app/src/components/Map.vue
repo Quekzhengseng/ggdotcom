@@ -46,7 +46,6 @@ import orangeIcon from '../assets/orange.png';
 import greenIcon from '../assets/green.png';
 import purpleIcon from '../assets/purple.png'
 
-// Define custom icons for landmarks
 const RedIcon = L.icon({
   iconUrl: redIcon,
   iconSize: [100, 50],      
@@ -88,8 +87,6 @@ const UserIcon = L.icon({
   shadowSize: [41, 41]
 });
 
-
-// Fix default icon paths for Leaflet
 const DefaultIcon = L.icon({
   iconUrl: markerIcon,
   shadowUrl: markerShadow,

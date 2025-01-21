@@ -36,6 +36,43 @@ import { onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import userIcon from '../assets/human.webp'
+import redIcon from '../assets/red.png';
+import orangeIcon from '../assets/orange.png';
+import greenIcon from '../assets/green.png';
+import purpleIcon from '../assets/purple.png'
+
+const RedIcon = L.icon({
+  iconUrl: redIcon,
+  iconSize: [100, 50],      
+  iconAnchor: [12, 41],    
+  popupAnchor: [40, -34],   
+  shadowSize: [41, 41]
+});
+
+const OrangeIcon = L.icon({
+  iconUrl: orangeIcon,
+  iconSize: [100, 50],      
+  iconAnchor: [12, 41],    
+  popupAnchor: [40, -34],   
+  shadowSize: [41, 41]
+});
+
+const GreenIcon = L.icon({
+  iconUrl: greenIcon,
+  iconSize: [100, 50],      
+  iconAnchor: [12, 41],    
+  popupAnchor: [40, -34],   
+  shadowSize: [41, 41]
+});
+
+const PurpleIcon = L.icon({
+  iconUrl: purpleIcon,
+  iconSize: [100, 50],      
+  iconAnchor: [12, 41],    
+  popupAnchor: [40, -34],   
+  shadowSize: [41, 41]
+});
 
 export default {
   name: 'SimulatedMap',
@@ -50,7 +87,8 @@ export default {
     const map = ref(null);
     const userLocation = ref(L.latLng(1.2806319061797837, 103.84971316328982)); // Hardcoded user location
     const markers = ref([]);
-    const userMarker = ref(null);  // Declare the userMarker to reference it
+    const userMarker = ref(null);  
+    
 
     // Function to initialize the map
     const initializeMap = () => {
@@ -93,8 +131,8 @@ export default {
       // Add a marker for the user's location
       userMarker.value = L.marker(userLocation.value, {
   icon: L.icon({
-    iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Map_marker_icon_%28solid%29.svg/2048px-Map_marker_icon_%28solid%29.svg.png', // Standard marker icon URL
-    iconSize: [32, 32], // Size of the marker
+    iconUrl: userIcon,
+    iconSize: [40, 41], // Size of the marker
     iconAnchor: [16, 32], // Anchor the marker at the bottom center
     popupAnchor: [0, -32] // Position popup above the marker
   }),
@@ -109,40 +147,84 @@ map.value.setView(userLocation.value, 16); // Center map on user's location
 
     // Function to add location markers to the map
     const addLocationMarkers = (markersLayer) => {
-      // Clear existing markers
-      markers.value.forEach((marker) => {
-        marker.remove();
-      });
-      markers.value = [];
-      markersLayer.clearLayers();
+  // Clear existing markers
+  markers.value.forEach((marker) => {
+    marker.remove();
+  });
+  markers.value = [];
+  markersLayer.clearLayers();
 
-      // Add new markers based on the locations prop
-      props.locations.forEach((location) => {
-        // Make sure the location has lat, lng, and name properties
-        if (location.lat && location.lng && location.name) {
-          const marker = L.marker([location.lat, location.lng], {
-            riseOnHover: true,
-            riseOffset: 250
-          });
+  // Check if we are filtering by prominence (is_distance is false)
+  if (props.locations.length > 0 && !props.locations[0].is_distance) {
+    // Split locations into three groups (one-third each)
+    const sortedLocations = [...props.locations];
+    const totalLocations = sortedLocations.length;
+    const third = Math.floor(totalLocations / 3);
 
-          const popup = L.popup({
-            closeButton: true,
-            closeOnClick: false, // Prevent map from centering when clicked
-            autoClose: false,
-            className: 'custom-popup-container',
-            autoPan: true,
-            autoPanPadding: [50, 50],
-            keepInView: true
-          }).setContent(createPopupContent(location));
+    // Assign icon colors based on prominence
+    sortedLocations.forEach((location, index) => {
+      let icon;
+      if (index < third) {
+        icon = RedIcon;  // First third (highest prominence)
+      } else if (index < 2 * third) {
+        icon = OrangeIcon;  // Second third
+      } else {
+        icon = PurpleIcon;  // Last third (lowest prominence)
+      }
 
-          marker.bindPopup(popup);
-          markers.value.push(marker);
-          marker.addTo(markersLayer);
-        } else {
-          console.warn('Invalid location data:', location);
-        }
-      });
-    };
+      // Create marker with the appropriate color
+      if (location.lat && location.lng && location.name) {
+        const marker = L.marker([location.lat, location.lng], {
+          riseOnHover: true,
+          riseOffset: 250,
+          icon: icon
+        });
+
+        const popup = L.popup({
+          closeButton: true,
+          closeOnClick: false, // Prevent map from centering when clicked
+          autoClose: false,
+          className: 'custom-popup-container',
+          autoPan: true,
+          autoPanPadding: [50, 50],
+          keepInView: true
+        }).setContent(createPopupContent(location));
+
+        marker.bindPopup(popup);
+        markers.value.push(marker);
+        marker.addTo(markersLayer);
+      } else {
+        console.warn('Invalid location data:', location);
+      }
+    });
+  } else {
+    // If filtering by distance (is_distance is true), use the default behavior
+    props.locations.forEach((location) => {
+      if (location.lat && location.lng && location.name) {
+        const marker = L.marker([location.lat, location.lng], {
+          riseOnHover: true,
+          riseOffset: 250
+        });
+
+        const popup = L.popup({
+          closeButton: true,
+          closeOnClick: false, // Prevent map from centering when clicked
+          autoClose: false,
+          className: 'custom-popup-container',
+          autoPan: true,
+          autoPanPadding: [50, 50],
+          keepInView: true
+        }).setContent(createPopupContent(location));
+
+        marker.bindPopup(popup);
+        markers.value.push(marker);
+        marker.addTo(markersLayer);
+      } else {
+        console.warn('Invalid location data:', location);
+      }
+    });
+  }
+};
 
     // Function to create popup content
     const createPopupContent = (location) => {
