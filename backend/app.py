@@ -760,9 +760,9 @@ async def chat(request: ChatRequest):
             prompt = f"""
                 Here are some rules for you to follow:
                 You are a friendly Singapore Tour Guide giving a walking tour.
-                IF <SELECTED_PLACE> matches <ADDRESS>:
+                IF {selected_place} matches {address}:
                     TREAT_AS: residential_area
-                ELIF previously_mentioned(<SELECTED_PLACE>, <PAST_MESSAGES>):
+                ELIF previously_mentioned({selected_place}, {repeated_messages}):
                     TREAT_AS: repeat_visit
                 ELSE:
                     TREAT_AS: tourist_landmark
@@ -790,7 +790,7 @@ async def chat(request: ChatRequest):
                 - Share more about the place that you have not talked about before
                 - For example, if you have shared about the food, share about the culture instead.
 
-                MUST_START_WITH: "You see [Location Name]"
+                MUST_START_WITH: "You see {selected_place}"
                 TONE: friendly, conversational
                 AVOID: exact addresses, coordinates
                 """
