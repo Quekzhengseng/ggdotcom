@@ -746,7 +746,7 @@ async def chat(request: ChatRequest):
                         return
                     else:
                         repeated_messages = None
-                        
+
                     chat_texts = []
                     
                     for message in repeated_messages:
@@ -770,8 +770,6 @@ async def chat(request: ChatRequest):
 
                 IF {selected_place} matches {address}:
                     TREAT_AS: residential_area
-                ELIF previously_mentioned({selected_place}, {repeated_messages}):
-                    TREAT_AS: repeat_visit
                 ELSE:
                     TREAT_AS: tourist_landmark
 
@@ -793,10 +791,6 @@ async def chat(request: ChatRequest):
                 - Explain its cultural importance in Singapore.
                 - Describe unique architectural features.
                 - Include interesting facts that make it special.
-
-                For repeat_visit:
-                - Share more about the place that you have not talked about before
-                - For example, if you have shared about the food, share about the culture instead.
 
                 MUST_START_WITH: "You see {selected_place}"
                 TONE: friendly, conversational
