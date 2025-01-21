@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col h-screen bg-white">
     <header class="bg-white p-4 shadow-md">
-    <div class="flex items-center justify-between w-full">
+    <div class="flex items-center justify-between w-full mb-4">
       <router-link to="/mappage" class="flex items-center text-red-600 hover:text-red-700 font-semibold text-lg">
         ← back to map
       </router-link>
@@ -9,22 +9,20 @@
     </div>
     
     <!-- Location Data Display -->
-    <div v-if="locationData" class="mt-4 w-full">
-      <div class="bg-gray-50 p-4 rounded-lg flex items-center">
-        <div v-if="locationData.base64Image" class="mr-4">
-          <img :src="'data:image/jpeg;base64,' + locationData.base64Image" alt="Location Image" class="rounded-lg w-32 h-32 object-cover"/>
+    <div v-if="locationData" class="mt-4 w-full flex flex-col items-center">
+      <div class="bg-gray-50 p-4 rounded-lg flex flex-col items-center">
+        <h2 class="text-2xl font-bold text-gray-800 text-center">{{ locationData.name }}</h2>
+        <div v-if="locationData.base64Image" class="mb-4">
+          <img :src="'data:image/jpeg;base64,' + locationData.base64Image" alt="Location Image" class="rounded-lg w-48 h-48 object-cover"/>
         </div>
-        <div v-else class="mr-4 w-32 h-32 bg-gray-200 rounded-lg flex items-center justify-center">
+        <div v-else class="mb-4 w-48 h-48 bg-gray-200 rounded-lg flex items-center justify-center">
           <span class="text-gray-400">No image</span>
-        </div>
-        <div>
-          <h2 class="text-xl font-bold text-gray-800">{{ locationData.name }}</h2>
         </div>
       </div>
     </div>
 
     <!-- Action Buttons -->
-    <div class="flex justify-between mt-4">
+    <div class="flex justify-center mt-6 space-x-4">
       <button @click="talkAboutPlace" class="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-md text-sm transition duration-300 ease-in-out transform hover:scale-105">
         Talk about this place
       </button>
