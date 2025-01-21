@@ -228,7 +228,7 @@ onMounted(async () => {
       locationData.value.base64Image = imageResponse.base64_image;
 
       // Fetch previous messages after location data is loaded
-      await fetchPreviousMessages();
+      // await fetchPreviousMessages();
     }
     checkSpeechRecognitionSupport();
   } catch (error) {
