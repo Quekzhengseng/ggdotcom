@@ -173,6 +173,47 @@ const fetchImage = async (photoReference) => {
   }
 };
 
+const fetchPreviousMessages = async () => {
+  try {
+    if (!locationData.value?.lat || !locationData.value?.lng) {
+      console.error('Location data not available');
+      return;
+    }
+    
+    const location = `${locationData.value.lat},${locationData.value.lng}`;
+    const response = await fetch('https://ggdotcom.onrender.com/messages2', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ location }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch previous messages');
+    }
+
+    const messages = await response.json();
+    
+    // Process and add each message to the store
+    messages.forEach(msg => {
+      // Skip messages that are from user with empty chatText and only contain image
+      if (msg.userCheck === "true" && msg.chatText === "" && msg.image) {
+        return; // Skip this message
+      }
+
+      store.addMessage({
+        text: msg.chatText,
+        isUser: msg.userCheck === "true",
+        image: msg.image || null,
+        timestamp: new Date(msg.timestamp)
+      });
+    });
+  } catch (error) {
+    console.error('Error fetching previous messages:', error);
+  }
+};
+
 
 onMounted(async () => {
   try {
@@ -184,13 +225,14 @@ onMounted(async () => {
 
       // Fetch the image from the backend using the photoReference
       const imageResponse = await fetchImage(locationData.value.photoReference);
+      locationData.value.base64Image = imageResponse.base64_image;
 
-      // Use the correct key for the base64 image
-      locationData.value.base64Image = imageResponse.base64_image; 
+      // Fetch previous messages after location data is loaded
+      await fetchPreviousMessages();
     }
     checkSpeechRecognitionSupport();
   } catch (error) {
-    console.error('Error parsing location data:', error);
+    console.error('Error during initialization:', error);
   }
 });
 
