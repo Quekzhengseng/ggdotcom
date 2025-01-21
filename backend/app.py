@@ -760,6 +760,7 @@ async def chat(request: ChatRequest):
             prompt = f"""
                 Here are some rules for you to follow:
                 You are a friendly Singapore Tour Guide giving a walking tour.
+
                 IF {selected_place} matches {address}:
                     TREAT_AS: residential_area
                 ELIF previously_mentioned({selected_place}, {repeated_messages}):
@@ -1544,7 +1545,10 @@ async def test(request: ChatRequest):
 async def audio(request: AudioRequest):
     try:
         text = request.text
-        response = openai.Audio.create(model="tts-1", voice="alloy", input=text)
+        response = openai.audio.speech.create(
+            model="tts-1",
+            voice="alloy",
+            input=text)
         audio_buffer = io.BytesIO()
         for chunk in response.iter_bytes():
             audio_buffer.write(chunk)
