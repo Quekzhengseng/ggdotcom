@@ -84,7 +84,7 @@ const UserIcon = L.icon({
   shadowUrl: markerShadow, 
   iconSize: [40, 41],      
   iconAnchor: [12, 41],    
-  popupAnchor: [40, -34],   
+  popupAnchor: [10, -34],   
   shadowSize: [41, 41]
 });
 
