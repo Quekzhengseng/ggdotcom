@@ -302,8 +302,7 @@ const talkAboutPlace = async () => {
     // Prepare the payload with location and optional image
     const payload = {
       location: `${locationData.value.lat},${locationData.value.lng}`,
-      text: 'Can you tell me about the landmark that I am at right now', // Modify as necessary or allow user input
-      image: locationData.value.base64Image || null, // Send the image if available
+      image: locationData.value.base64Image || null,
     };
 
     // Send the request to the backend
