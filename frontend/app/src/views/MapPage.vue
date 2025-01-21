@@ -17,12 +17,12 @@
     </header>
 
     <!-- Controls Section -->
-    <div class="flex items-center justify-between px-4 py-2 bg-gray-100 shadow">
+    <div class="flex items-center justify-between px-4 py-2">
       <button
         @click="scanLandmarks"
         class="px-4 py-2 bg-red-600 text-white font-semibold rounded hover:bg-red-700"
       >
-        Scan surrounding for landmarks
+        Scan surrounding for landmarks!
       </button>
 
       <select
