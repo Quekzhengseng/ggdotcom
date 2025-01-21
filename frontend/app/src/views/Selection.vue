@@ -21,7 +21,7 @@
               <button 
                 class="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded w-36"
               >
-                Normal Tour
+              Audio Tour
               </button>
             </router-link>
   
