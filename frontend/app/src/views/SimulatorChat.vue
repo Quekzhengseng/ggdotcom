@@ -140,13 +140,13 @@ const startSimulator = async () => {
       messages.value.push({ text: data.response, isUser: false });
 
       if (i === 0) {
-        await delay(70000);
+        await delay(7000);
         const historicalQuestion = "What is the historical significance of this place I am in?";
         messages.value.push({ text: historicalQuestion, isUser: true });
       }
 
       if (i === 1) {
-        await delay(73000);
+        await delay(7300);
         try {
           const imageDataUrl = await convertImageToBase64(lauPaSatImage);
 
@@ -163,7 +163,7 @@ const startSimulator = async () => {
           messages.value.push({ text: imageResponse.response, isUser: false });
 
           // Add delay to simulate processing
-          await delay(10000);
+          await delay(1000);
         } catch (error) {
           console.error("Error processing image:", error);
           messages.value.push({
@@ -174,7 +174,7 @@ const startSimulator = async () => {
       }
 
       if (i < locations.length - 1) {
-        await delay(10000);
+        await delay(1000);
       }
     }
 
