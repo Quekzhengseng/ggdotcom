@@ -20,5 +20,9 @@ export const useAppStore = defineStore('app', {
     setCurrentLocation(location) {
       this.currentLocation = location
     },
+    // Add the new clearMessages action
+    clearMessages() {
+      this.messages = []
+    },
   },
 })

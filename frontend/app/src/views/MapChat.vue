@@ -1,42 +1,36 @@
 <template>
   <div class="flex flex-col h-screen bg-white">
-    <!-- Header with Back Button and Location Info -->
-    <header class="flex flex-col items-center justify-between bg-white p-4 shadow-md">
-      <div class="flex items-center justify-between w-full">
-        <router-link to="/mappage" class="flex items-center text-red-600 hover:text-red-700 font-semibold text-lg">
-          ← back to map
-        </router-link>
-        <p class="text-lg font-medium text-gray-800">Chat</p>
-        <div class="w-6"></div>
-      </div>
-      
-  <!-- Location Data Display -->
-  <div v-if="locationData" class="mt-2 w-full px-4">
-    <div class="bg-gray-50 p-3 rounded-lg">
-      <h2 class="text-md text-center font-bold text-gray-800">{{ locationData.name }}</h2>
-      <div class="text-sm text-gray-600 mt-1">
-        <div v-if="locationData.base64Image" class="flex justify-center">
-          <img :src="'data:image/jpeg;base64,' + locationData.base64Image" alt="Location Image" class="rounded-lg w-20 h-auto"/>
+    <header class="bg-white p-4 shadow-md">
+    <div class="flex items-center justify-between w-full mb-4">
+      <router-link to="/mappage" class="flex items-center text-red-600 hover:text-red-700 font-semibold text-lg">
+        ← back to map
+      </router-link>
+      <div class="w-6"></div>
+    </div>
+    
+    <!-- Location Data Display -->
+    <div v-if="locationData" class="mt-4 w-full flex flex-col items-center">
+      <div class="bg-gray-50 p-4 rounded-lg flex flex-col items-center">
+        <h2 class="text-2xl font-bold text-gray-800 text-center">{{ locationData.name }}</h2>
+        <div v-if="locationData.base64Image" class="mb-4">
+          <img :src="'data:image/jpeg;base64,' + locationData.base64Image" alt="Location Image" class="rounded-lg w-48 h-48 object-cover"/>
         </div>
-        <p v-if="!locationData.base64Image">No image available</p>
+        <div v-else class="mb-4 w-48 h-48 bg-gray-200 rounded-lg flex items-center justify-center">
+          <span class="text-gray-400">No image</span>
+        </div>
       </div>
     </div>
 
-
     <!-- Action Buttons -->
-    <div class="flex justify-between mt-4 px-4">
-      <button @click="talkAboutPlace" class="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-full">
+    <div class="flex justify-center mt-6 space-x-4">
+      <button @click="talkAboutPlace" class="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-md text-sm transition duration-300 ease-in-out transform hover:scale-105">
         Talk about this place
       </button>
-      <button @click="takeMeThere" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-full">
+      <button @click="takeMeThere" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md text-sm transition duration-300 ease-in-out transform hover:scale-105">
         Take me there
       </button>
     </div>
-</div>
-
-    </header>
-
-    <!-- Main Chat Area -->
+  </header>
     <main class="flex-grow overflow-y-auto p-6 space-y-6">
       <div v-for="(message, index) in messages" :key="index" class="animate-fade-in-up">
         <div :class="[
@@ -179,6 +173,47 @@ const fetchImage = async (photoReference) => {
   }
 };
 
+const fetchPreviousMessages = async () => {
+  try {
+    if (!locationData.value?.lat || !locationData.value?.lng) {
+      console.error('Location data not available');
+      return;
+    }
+    
+    const location = `${locationData.value.lat},${locationData.value.lng}`;
+    const response = await fetch('https://ggdotcom.onrender.com/messages2', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ location }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch previous messages');
+    }
+
+    const messages = await response.json();
+    
+    // Process and add each message to the store
+    messages.forEach(msg => {
+      // Skip messages that are from user with empty chatText and only contain image
+      if (msg.userCheck === "true" && msg.chatText === "" && msg.image) {
+        return; // Skip this message
+      }
+
+      store.addMessage({
+        text: msg.chatText,
+        isUser: msg.userCheck === "true",
+        image: msg.image || null,
+        timestamp: new Date(msg.timestamp)
+      });
+    });
+  } catch (error) {
+    console.error('Error fetching previous messages:', error);
+  }
+};
+
 
 onMounted(async () => {
   try {
@@ -190,13 +225,14 @@ onMounted(async () => {
 
       // Fetch the image from the backend using the photoReference
       const imageResponse = await fetchImage(locationData.value.photoReference);
+      locationData.value.base64Image = imageResponse.base64_image;
 
-      // Use the correct key for the base64 image
-      locationData.value.base64Image = imageResponse.base64_image; 
+      // Fetch previous messages after location data is loaded
+      await fetchPreviousMessages();
     }
     checkSpeechRecognitionSupport();
   } catch (error) {
-    console.error('Error parsing location data:', error);
+    console.error('Error during initialization:', error);
   }
 });
 
