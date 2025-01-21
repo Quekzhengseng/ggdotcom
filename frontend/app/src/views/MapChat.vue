@@ -1,42 +1,38 @@
 <template>
   <div class="flex flex-col h-screen bg-white">
-    <!-- Header with Back Button and Location Info -->
-    <header class="flex flex-col items-center justify-between bg-white p-4 shadow-md">
-      <div class="flex items-center justify-between w-full">
-        <router-link to="/mappage" class="flex items-center text-red-600 hover:text-red-700 font-semibold text-lg">
-          ← back to map
-        </router-link>
-        <p class="text-lg font-medium text-gray-800">Chat</p>
-        <div class="w-6"></div>
-      </div>
-      
-  <!-- Location Data Display -->
-  <div v-if="locationData" class="mt-2 w-full px-4">
-    <div class="bg-gray-50 p-3 rounded-lg">
-      <h2 class="text-md text-center font-bold text-gray-800">{{ locationData.name }}</h2>
-      <div class="text-sm text-gray-600 mt-1">
-        <div v-if="locationData.base64Image" class="flex justify-center">
-          <img :src="'data:image/jpeg;base64,' + locationData.base64Image" alt="Location Image" class="rounded-lg w-20 h-auto"/>
+    <header class="bg-white p-4 shadow-md">
+    <div class="flex items-center justify-between w-full">
+      <router-link to="/mappage" class="flex items-center text-red-600 hover:text-red-700 font-semibold text-lg">
+        ← back to map
+      </router-link>
+      <div class="w-6"></div>
+    </div>
+    
+    <!-- Location Data Display -->
+    <div v-if="locationData" class="mt-4 w-full">
+      <div class="bg-gray-50 p-4 rounded-lg flex items-center">
+        <div v-if="locationData.base64Image" class="mr-4">
+          <img :src="'data:image/jpeg;base64,' + locationData.base64Image" alt="Location Image" class="rounded-lg w-32 h-32 object-cover"/>
         </div>
-        <p v-if="!locationData.base64Image">No image available</p>
+        <div v-else class="mr-4 w-32 h-32 bg-gray-200 rounded-lg flex items-center justify-center">
+          <span class="text-gray-400">No image</span>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-gray-800">{{ locationData.name }}</h2>
+        </div>
       </div>
     </div>
 
-
     <!-- Action Buttons -->
-    <div class="flex justify-between mt-4 px-4">
-      <button @click="talkAboutPlace" class="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-full">
+    <div class="flex justify-between mt-4">
+      <button @click="talkAboutPlace" class="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-md text-sm transition duration-300 ease-in-out transform hover:scale-105">
         Talk about this place
       </button>
-      <button @click="takeMeThere" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-full">
+      <button @click="takeMeThere" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md text-sm transition duration-300 ease-in-out transform hover:scale-105">
         Take me there
       </button>
     </div>
-</div>
-
-    </header>
-
-    <!-- Main Chat Area -->
+  </header>
     <main class="flex-grow overflow-y-auto p-6 space-y-6">
       <div v-for="(message, index) in messages" :key="index" class="animate-fade-in-up">
         <div :class="[
