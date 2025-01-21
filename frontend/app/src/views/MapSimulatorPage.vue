@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col h-screen bg-white">
     <!-- Header section -->
-    <header class="flex flex-col items-center justify-between bg-white p-4 shadow-md">
+    <header class="flex flex-col items-center justify-between bg-white p-4">
       <div class="flex items-center justify-between w-full">
         <router-link
           to="/mapselection"
@@ -17,7 +17,7 @@
     </header>
 
     <!-- Controls Section -->
-    <div class="flex items-center justify-between px-4 py-2 bg-gray-100 shadow">
+    <div class="flex items-center justify-between px-4 py-2">
       <button
         @click="scanLandmarks"
         class="px-4 py-2 bg-red-600 text-white font-semibold rounded hover:bg-red-700"

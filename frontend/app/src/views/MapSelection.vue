@@ -29,7 +29,7 @@
               <button 
                 class="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded w-48"
               >
-                Map Simulator (not working yet)
+                Map Simulator
               </button>
             </router-link>
             
