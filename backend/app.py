@@ -560,7 +560,8 @@ async def chat(request: ChatRequest):
 
             except Exception as e:
                 print(f"Geocoding error: {str(e)}")
-            search_term = selected_place if selected_place else address
+
+            search_term = address if address else address
             context = get_rag_information(search_term, lat=lat, lng=lng)
             print("ADDED CONTEXT", context)
             #Initalize prompt with IMAGE
@@ -1021,6 +1022,7 @@ async def chat2(request: ChatRequest):
             selected_place = places_result["results"][0]["name"]
 
             context = get_rag_information(selected_place)
+            
             print("ADDED CONTEXT", context)
 
             # Add address to prompt
