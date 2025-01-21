@@ -41,13 +41,50 @@ import 'leaflet/dist/leaflet.css';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import userIconImage from '../assets/human.webp';
+import redIcon from '../assets/red.png';
+import orangeIcon from '../assets/orange.png';
+import greenIcon from '../assets/green.png';
+import purpleIcon from '../assets/purple.png'
+
+// Define custom icons for landmarks
+const RedIcon = L.icon({
+  iconUrl: redIcon,
+  iconSize: [100, 50],      
+  iconAnchor: [12, 41],    
+  popupAnchor: [40, -34],   
+  shadowSize: [41, 41]
+});
+
+const OrangeIcon = L.icon({
+  iconUrl: orangeIcon,
+  iconSize: [100, 50],      
+  iconAnchor: [12, 41],    
+  popupAnchor: [40, -34],   
+  shadowSize: [41, 41]
+});
+
+const GreenIcon = L.icon({
+  iconUrl: greenIcon,
+  iconSize: [100, 50],      
+  iconAnchor: [12, 41],    
+  popupAnchor: [40, -34],   
+  shadowSize: [41, 41]
+});
+
+const PurpleIcon = L.icon({
+  iconUrl: purpleIcon,
+  iconSize: [100, 50],      
+  iconAnchor: [12, 41],    
+  popupAnchor: [40, -34],   
+  shadowSize: [41, 41]
+});
 
 const UserIcon = L.icon({
   iconUrl: userIconImage,
   shadowUrl: markerShadow, 
   iconSize: [40, 41],      
   iconAnchor: [12, 41],    
-  popupAnchor: [1, -34],   
+  popupAnchor: [40, -34],   
   shadowSize: [41, 41]
 });
 
@@ -119,40 +156,85 @@ export default {
 
     // Function to add location markers to the map
     const addLocationMarkers = (markersLayer) => {
-      // Clear existing markers
-      markers.value.forEach((marker) => {
-        marker.remove();
-      });
-      markers.value = [];
-      markersLayer.clearLayers();
+  // Clear existing markers
+  markers.value.forEach((marker) => {
+    marker.remove();
+  });
+  markers.value = [];
+  markersLayer.clearLayers();
 
-      // Add new markers based on the locations prop
-      props.locations.forEach((location) => {
-        // Make sure the location has lat, lng, and name properties
-        if (location.lat && location.lng && location.name) {
-          const marker = L.marker([location.lat, location.lng], {
-            riseOnHover: true,
-            riseOffset: 250
-          });
+  // Check if we are filtering by prominence (is_distance is false)
+  if (props.locations.length > 0 && !props.locations[0].is_distance) {
+    // Split locations into three groups (one-third each)
+    const sortedLocations = [...props.locations];
+    const totalLocations = sortedLocations.length;
+    const third = Math.floor(totalLocations / 3);
 
-          const popup = L.popup({
-            closeButton: true,
-            closeOnClick: false, 
-            autoClose: false,
-            className: 'custom-popup-container',
-            autoPan: true,
-            autoPanPadding: [50, 50],
-            keepInView: true
-          }).setContent(createPopupContent(location));
+    // Assign icon colors based on prominence
+    sortedLocations.forEach((location, index) => {
+      let icon;
+      if (index < third) {
+        icon = RedIcon;  // First third (highest prominence)
+      } else if (index < 2 * third) {
+        icon = OrangeIcon;  // Second third
+      } else {
+        icon = PurpleIcon;  // Last third (lowest prominence)
+      }
 
-          marker.bindPopup(popup);
-          markers.value.push(marker);
-          marker.addTo(markersLayer);
-        } else {
-          console.warn('Invalid location data:', location);
-        }
-      });
-    };
+      // Create marker with the appropriate color
+      if (location.lat && location.lng && location.name) {
+        const marker = L.marker([location.lat, location.lng], {
+          riseOnHover: true,
+          riseOffset: 250,
+          icon: icon
+        });
+
+        const popup = L.popup({
+          closeButton: true,
+          closeOnClick: false, // Prevent map from centering when clicked
+          autoClose: false,
+          className: 'custom-popup-container',
+          autoPan: true,
+          autoPanPadding: [50, 50],
+          keepInView: true
+        }).setContent(createPopupContent(location));
+
+        marker.bindPopup(popup);
+        markers.value.push(marker);
+        marker.addTo(markersLayer);
+      } else {
+        console.warn('Invalid location data:', location);
+      }
+    });
+  } else {
+    // If filtering by distance (is_distance is true), use the default behavior
+    props.locations.forEach((location) => {
+      if (location.lat && location.lng && location.name) {
+        const marker = L.marker([location.lat, location.lng], {
+          riseOnHover: true,
+          riseOffset: 250
+        });
+
+        const popup = L.popup({
+          closeButton: true,
+          closeOnClick: false, // Prevent map from centering when clicked
+          autoClose: false,
+          className: 'custom-popup-container',
+          autoPan: true,
+          autoPanPadding: [50, 50],
+          keepInView: true
+        }).setContent(createPopupContent(location));
+
+        marker.bindPopup(popup);
+        markers.value.push(marker);
+        marker.addTo(markersLayer);
+      } else {
+        console.warn('Invalid location data:', location);
+      }
+    });
+  }
+};
+
 
     // Function to create popup content
     const createPopupContent = (location) => {
@@ -184,7 +266,7 @@ export default {
       });
     };
 
-
+    // Watch for changes in locations prop to update markers
     watch(
       () => props.locations,
       (newLocations) => {
@@ -196,7 +278,7 @@ export default {
       { immediate: true }
     );
 
-
+    // Function to get user's location
     const locateUser = () => {
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
@@ -209,13 +291,13 @@ export default {
         }
 
         userMarker.value = L.marker(userLocation.value, {
-          icon: UserIcon, 
+          icon: UserIcon, // Use the custom user icon
           zIndexOffset: 1000
         }).addTo(map.value)
           .bindPopup('You are here!')
           .openPopup();
 
-        map.value.setView(userLocation.value, 16);
+        map.value.setView(userLocation.value, 16); // Center map on user's location
       },
       (error) => {
         console.error('Error retrieving location:', error);

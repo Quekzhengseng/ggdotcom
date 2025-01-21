@@ -56,7 +56,7 @@ const getUserLocation = () => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
-          resolve(`${latitude},${longitude}`); // Return as a string
+          resolve(`${latitude},${longitude}`);
         },
         (error) => {
           reject(new Error('Unable to retrieve location: ' + error.message));
