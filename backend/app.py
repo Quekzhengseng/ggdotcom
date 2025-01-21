@@ -893,6 +893,18 @@ async def chat2(request: ChatRequest):
             # Get address using Google Maps
             selected_place = gmap.reverse_geocode((lat, lng))[0]['formatted_address']
 
+            places_result = gmap.places_nearby(
+                    location=(lat, lng),
+                    rank_by='distance',
+                    type=['tourist_attraction', 'museum', 'art_gallery', 'park', 'shopping_mall', 
+                        'hindu_temple', 'church', 'mosque', 'place_of_worship', 
+                        'amusement_park', 'aquarium', 'zoo', 
+                        'restaurant', 'cafe'],
+                    language='en'
+                )
+        
+            selected_place = places_result["results"][0]["name"]
+
             try:
                 # Check if it already has the prefix
                 if image_data.startswith('data:image/jpeg;base64,'):
@@ -994,6 +1006,18 @@ async def chat2(request: ChatRequest):
             # Get address using Google Maps
             selected_place = gmap.reverse_geocode((lat, lng))[0]['formatted_address']
 
+            places_result = gmap.places_nearby(
+                    location=(lat, lng),
+                    rank_by='distance',
+                    type=['tourist_attraction', 'museum', 'art_gallery', 'park', 'shopping_mall', 
+                        'hindu_temple', 'church', 'mosque', 'place_of_worship', 
+                        'amusement_park', 'aquarium', 'zoo', 
+                        'restaurant', 'cafe'],
+                    language='en'
+                )
+        
+            selected_place = places_result["results"][0]["name"]
+
             context = get_rag_information(selected_place)
             print("ADDED CONTEXT", context)
 
@@ -1092,6 +1116,18 @@ async def chat2(request: ChatRequest):
             # Get address using Google Maps
             selected_place = gmap.reverse_geocode((lat, lng))[0]['formatted_address']
 
+            places_result = gmap.places_nearby(
+                    location=(lat, lng),
+                    rank_by='distance',
+                    type=['tourist_attraction', 'museum', 'art_gallery', 'park', 'shopping_mall', 
+                        'hindu_temple', 'church', 'mosque', 'place_of_worship', 
+                        'amusement_park', 'aquarium', 'zoo', 
+                        'restaurant', 'cafe'],
+                    language='en'
+                )
+        
+            selected_place = places_result["results"][0]["name"]
+
             context = get_rag_information(selected_place)
             print("ADDED CONTEXT", context)
 
@@ -1189,6 +1225,18 @@ async def chat2(request: ChatRequest):
 
             # Get address using Google Maps
             selected_place = gmap.reverse_geocode((lat, lng))[0]['formatted_address']
+
+            places_result = gmap.places_nearby(
+                    location=(lat, lng),
+                    rank_by='distance',
+                    type=['tourist_attraction', 'museum', 'art_gallery', 'park', 'shopping_mall', 
+                        'hindu_temple', 'church', 'mosque', 'place_of_worship', 
+                        'amusement_park', 'aquarium', 'zoo', 
+                        'restaurant', 'cafe'],
+                    language='en'
+                )
+        
+            selected_place = places_result["results"][0]["name"]
 
             context = get_rag_information(selected_place)
             print("ADDED CONTEXT", context)
