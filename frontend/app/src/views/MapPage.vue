@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col h-screen bg-white">
     <!-- Header section -->
-    <header class="flex flex-col items-center justify-between bg-white p-4 shadow-md">
+    <header class="flex flex-col items-center justify-between bg-white p-4">
       <div class="flex items-center justify-between w-full">
         <router-link
           to="/mapselection"
@@ -9,9 +9,8 @@
         >
           ← back
         </router-link>
-        <p class="text-lg font-medium text-gray-800">Map</p>
+        <p class="text-3xl font-medium text-gray-800">Map</p>
         <div class="w-6">
-          <!-- Placeholder div to maintain header layout -->
         </div>
       </div>
     </header>
@@ -22,7 +21,7 @@
         @click="scanLandmarks"
         class="px-4 py-2 bg-red-600 text-white font-semibold rounded hover:bg-red-700"
       >
-        Scan surrounding for landmarks!
+      ⌕ Scan Landmarks
       </button>
 
       <select
