@@ -946,7 +946,7 @@ async def chat2(request: ChatRequest):
             response = openai.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=messages,
-                max_tokens=500,
+                max_tokens=100,
                 temperature=0
             )
 
@@ -1056,7 +1056,7 @@ async def chat2(request: ChatRequest):
             response = openai.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=messages,
-                max_tokens=500,
+                max_tokens=100,
                 temperature=0.5
             )
 
@@ -1166,7 +1166,7 @@ async def chat2(request: ChatRequest):
             response = openai.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=messages,
-                max_tokens=500,
+                max_tokens=100,
                 temperature=0
             )
 
@@ -1276,8 +1276,8 @@ async def chat2(request: ChatRequest):
             response = openai.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=messages,
-                max_tokens=500,
-                temperature=0.5
+                max_tokens=100,
+                temperature=0.5,
             )
 
             # Extract response text
