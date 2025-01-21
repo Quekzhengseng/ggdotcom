@@ -40,6 +40,17 @@ import 'leaflet/dist/leaflet.css';
 // Import marker images for Leaflet
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import userIconImage from '../assets/human.webp';
+
+const UserIcon = L.icon({
+  iconUrl: userIconImage,
+  shadowUrl: markerShadow, 
+  iconSize: [40, 41],      
+  iconAnchor: [12, 41],    
+  popupAnchor: [1, -34],   
+  shadowSize: [41, 41]
+});
+
 
 // Fix default icon paths for Leaflet
 const DefaultIcon = L.icon({
@@ -126,7 +137,7 @@ export default {
 
           const popup = L.popup({
             closeButton: true,
-            closeOnClick: false, // Prevent map from centering when clicked
+            closeOnClick: false, 
             autoClose: false,
             className: 'custom-popup-container',
             autoPan: true,
@@ -173,7 +184,7 @@ export default {
       });
     };
 
-    // Watch for changes in locations prop to update markers
+
     watch(
       () => props.locations,
       (newLocations) => {
@@ -185,37 +196,38 @@ export default {
       { immediate: true }
     );
 
-    // Function to get user's location
+
     const locateUser = () => {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const { latitude, longitude } = position.coords;
-            userLocation.value = L.latLng(latitude, longitude);
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        userLocation.value = L.latLng(latitude, longitude);
 
-            if (userMarker.value) {
-              userMarker.value.remove();
-            }
+        if (userMarker.value) {
+          userMarker.value.remove();
+        }
 
-            userMarker.value = L.marker(userLocation.value, {
-              zIndexOffset: 1000
-            }).addTo(map.value)
-              .bindPopup('You are here!')
-              .openPopup();
+        userMarker.value = L.marker(userLocation.value, {
+          icon: UserIcon, 
+          zIndexOffset: 1000
+        }).addTo(map.value)
+          .bindPopup('You are here!')
+          .openPopup();
 
-            map.value.setView(userLocation.value, 16); // Center map on user's location
-          },
-          (error) => {
-            console.error('Error retrieving location:', error);
-            alert('Unable to retrieve your location.');
-          }
-        );
-      } else {
-        alert('Geolocation is not supported by your browser.');
+        map.value.setView(userLocation.value, 16);
+      },
+      (error) => {
+        console.error('Error retrieving location:', error);
+        alert('Unable to retrieve your location.');
       }
-    };
+    );
+  } else {
+    alert('Geolocation is not supported by your browser.');
+  }
+};
 
-    // Function to center map on user location
+
     const centerOnUser = () => {
       console.log('Centering on user');
       if (userLocation.value && map.value) {
@@ -233,7 +245,7 @@ export default {
 
     onMounted(() => {
       initializeMap();
-      locateUser(); // Ensure map is centered on user's location at first load
+      locateUser(); 
     });
 
     return {
@@ -265,14 +277,12 @@ export default {
     text-align: center;
   }
 
-  /* Add styles to prevent popup from disappearing */
   .leaflet-popup {
     position: absolute;
     z-index: 1000;
   }
 }
 
-/* Add styles to prevent blank spaces in tiles */
 :deep(.leaflet-tile-container) {
   will-change: transform;
   transform-style: preserve-3d;
