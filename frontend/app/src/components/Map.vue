@@ -37,6 +37,21 @@ import { useRouter } from 'vue-router';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
+// Import marker images for Leaflet
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
+// Fix default icon paths for Leaflet
+const DefaultIcon = L.icon({
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+L.Marker.prototype.options.icon = DefaultIcon;
+
 export default {
   name: 'Map',
   props: {
@@ -149,7 +164,7 @@ export default {
 
     const handleSeeMore = (location) => {
       console.log('See more clicked for location:', location);
-      // We'll pass the entire location object as a query parameter
+      // Pass the entire location object as a query parameter
       router.push({ 
         name: 'MapChat', 
         query: { 
@@ -157,6 +172,7 @@ export default {
         } 
       });
     };
+
     // Watch for changes in locations prop to update markers
     watch(
       () => props.locations,
