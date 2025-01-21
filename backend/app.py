@@ -568,9 +568,9 @@ async def chat(request: ChatRequest):
             prompt = f"""
                 You are a tour guide giving a tour in Singapore.
                 Use the RAG only if it directly mentions the landmark and matches the provided location. 
-                If the RAG does not match, completely ignore the rag entirely and talk about {selected_place}.
+                If the RAG does not match, completely ignore the rag entirely and talk about {address}.
                 Do not mention about RAG at all.
-                You are also given the user's address of {address} to provide more context in regards to where the photo is taken.
+                You are given the user's address of {address} to provide more context in regards to where the photo is taken.
                 Start by saying, You see [Point of interest] in the photo. Do not mention anything about the address in your answer.
                 Include only what is given in the photo and describe in detail regarding history or context."""
 
@@ -1022,7 +1022,7 @@ async def chat2(request: ChatRequest):
             selected_place = places_result["results"][0]["name"]
 
             context = get_rag_information(selected_place)
-            
+
             print("ADDED CONTEXT", context)
 
             # Add address to prompt
