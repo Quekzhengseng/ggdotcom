@@ -19,11 +19,19 @@ Instructions to note:
      2. Sending a photo or text will prompt the LLM for a response in regards to the photo or said text.
      3. The response will be converted to audio output for the user to hear. Currently, text only output has not been added.
         
-   b) The simulator
+   b) The tour app simulator
       You will be able to see all the functions of the app in the simulator, it will auto run 5 different coordinates along chinatown, with one request being made with text and another made with a photo.
 
+   c) The map app
+    1. Able to see nearby landmarks within your location
+    2. Able to genAI the locations replies as well as questioning of the location itself
+    3. Able to filter the nearby locations either by prominence or distance, colour of the pin represent as such.
+  
+  d) The map simulator
+   1. The map simulator is able to run through the coordinate of chinatown to scan the nearby landmarks
+
 Things to note when running the deployed app:
- - Currently, when running both the simulator and the app, each interval of msg with AUTO LOCATION turned on will take 150 seconds each. This timing is currently fixed.
+ - Currently, when running both the simulator and the app, each interval of msg with AUTO LOCATION turned on will take 5 and 150 seconds respectively. This timing is currently fixed.
  - Currently, questions or photos will be taken with respect with the location. Hence, giving a photo of the merlion while physically at the west side of Singapore would cause the LLM to reject the statement due to our prompt that is given.
 
 
