@@ -9,7 +9,7 @@
         >
           ← back
         </router-link>
-        <p class="text-lg font-medium text-gray-800">map</p>
+        <p class="text-lg font-medium text-gray-800">Map</p>
         <div class="w-6">
           <!-- Placeholder div to maintain header layout -->
         </div>

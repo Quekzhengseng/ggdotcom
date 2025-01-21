@@ -1,264 +1,155 @@
 <template>
-    <div id="map-container" class="relative">
-      <div id="mapdiv" style="height: 100vh;"></div>
-      <button 
-        @click="startWalking"
-        :disabled="isWalking"
-        class="absolute bottom-40 right-20 bg-white p-3 rounded-full shadow-lg hover:bg-gray-50 z-[1000] disabled:bg-gray-100 disabled:cursor-not-allowed"
-        title="Walk to next landmark"
+  <div id="map-container" class="relative">
+    <div id="mapdiv" style="height: 100vh;"></div>
+    <!-- Add location button -->
+    <button 
+      @click="centerOnUser"
+      class="absolute bottom-6 right-6 bg-white p-3 rounded-full shadow-lg hover:bg-gray-50 z-[1000]"
+      title="Go to my location"
+    >
+      <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        class="h-6 w-6 text-red-600" 
+        fill="none" 
+        viewBox="0 0 24 24" 
+        stroke="currentColor"
       >
-        <svg 
-          xmlns="http://www.w3.org/2000/svg" 
-          class="h-6 w-6"
-          :class="isWalking ? 'text-gray-400' : 'text-red-600'"
-          fill="none" 
-          viewBox="0 0 24 24" 
-          stroke="currentColor"
-        >
-          <path 
-            strokeLinecap="round" 
-            strokeLinejoin="round" 
-            strokeWidth={2} 
-            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-          />
-          <path 
-            strokeLinecap="round" 
-            strokeLinejoin="round" 
-            strokeWidth={2} 
-            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-          />
-        </svg>
-      </button>
-      <div v-if="isWalking" class="absolute bottom-20 right-6 bg-white p-2 rounded-lg shadow-lg z-[1000]">
-        Walking to {{ nextLandmarkName }}...
-      </div>
-    </div>
+        <path 
+          strokeLinecap="round" 
+          strokeLinejoin="round" 
+          strokeWidth="2" 
+          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+        />
+        <path 
+          strokeLinecap="round" 
+          strokeLinejoin="round" 
+          strokeWidth="2" 
+          d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+        />
+      </svg>
+    </button>
+  </div>
 </template>
 
 <script>
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 export default {
   name: 'SimulatedMap',
-  emits: ['landmark-selected'],
-  setup(props, { emit }) {
-    const router = useRouter();
+  props: {
+    locations: {
+      type: Array,
+      required: true
+    }
+  },
+  setup(props) {
+    const router = useRouter(); 
     const map = ref(null);
+    const userLocation = ref(L.latLng(1.2806319061797837, 103.84971316328982)); // Hardcoded user location
     const markers = ref([]);
-    const userMarker = ref(null);
-    const currentLocationIndex = ref(0);
-    const isWalking = ref(false);
-    const walkingPath = ref(null);
+    const userMarker = ref(null);  // Declare the userMarker to reference it
 
-    // Updated landmarks structure
-    const landmarks = ref([
-      {
-        name: "Lau Pa Sat",
-        coordinates: { lat: 1.2805323020001182, lng: 103.85038194843708 },
-        image: "../assets/laupasat.jpg",
-        description: "Historic Victorian-style hawker centre"
-      },
-      {
-        name: "Thian Hock Keng Temple",
-        coordinates: { lat: 1.2810300237327374, lng: 103.847684566293 },
-        image: "../assets/thian-hock-kheng-temple.jpg",
-        description: "Oldest Chinese temple in Singapore"
-      },
-      {
-        name: "Sri Mariamman Temple",
-        coordinates: { lat: 1.282748539420265, lng: 103.84511988503064 },
-        image: "/images/sri-mariamman.jpg",
-        description: "Oldest Hindu temple in Singapore"
-      }
-    ]);
-
-    const nextLandmarkName = computed(() => {
-      const nextIndex = (currentLocationIndex.value + 1) % landmarks.value.length;
-      return landmarks.value[nextIndex].name;
-    });
-
-    const moveMarker = (newPosition) => {
-      try {
-        if (!userMarker.value) {
-          console.error('User marker not initialized');
-          return false;
-        }
-        userMarker.value.setLatLng(newPosition);
-        return true;
-      } catch (error) {
-        console.error('Error moving marker:', error);
-        return false;
-      }
-    };
-
-    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-    const animateWalk = async (start, end) => {
-      console.log('Starting walk animation:', start, end);
-      const steps = 100;
-      const duration = 5000;
-      const delay = duration / steps;
-      
-      for (let i = 0; i <= steps; i++) {
-        if (!isWalking.value) {
-          console.log('Walking cancelled');
-          return false;
-        }
-
-        const progress = i / steps;
-        const currentPosition = {
-          lat: start.lat + (end.lat - start.lat) * progress,
-          lng: start.lng + (end.lng - start.lng) * progress
-        };
-
-        const moved = moveMarker([currentPosition.lat, currentPosition.lng]);
-        if (!moved) {
-          console.error('Failed to move marker');
-          return false;
-        }
-
-        if (walkingPath.value) {
-          const currentPath = walkingPath.value.getLatLngs();
-          currentPath.push([currentPosition.lat, currentPosition.lng]);
-          walkingPath.value.setLatLngs(currentPath);
-        }
-
-        await sleep(delay);
-      }
-
-      return true;
-    };
-
-    const startWalking = async () => {
-      if (isWalking.value) {
-        console.log('Already walking');
-        return;
-      }
-
-      console.log('Starting walk simulation');
-      isWalking.value = true;
-
-      try {
-        // Get current and next positions
-        const currentPosition = landmarks.value[currentLocationIndex.value].coordinates;
-        const nextIndex = (currentLocationIndex.value + 1) % landmarks.value.length;
-        const nextPosition = landmarks.value[nextIndex].coordinates;
-
-        console.log('Walking from', currentPosition, 'to', nextPosition);
-
-        // Create new path
-        if (walkingPath.value) {
-          walkingPath.value.remove();
-        }
-
-        walkingPath.value = L.polyline([[currentPosition.lat, currentPosition.lng]], {
-          color: '#3B82F6',
-          weight: 3,
-          opacity: 0.6,
-          dashArray: '10, 10'
-        }).addTo(map.value);
-
-        const success = await animateWalk(currentPosition, nextPosition);
-
-        if (success) {
-          currentLocationIndex.value = nextIndex;
-          console.log('Walk completed, new index:', currentLocationIndex.value);
-        } else {
-          console.error('Walk animation failed');
-        }
-
-      } catch (error) {
-        console.error('Error during walk:', error);
-      } finally {
-        isWalking.value = false;
-        if (walkingPath.value) {
-          walkingPath.value.remove();
-          walkingPath.value = null;
-        }
-      }
-    };
-
-    const initializeUserPosition = () => {
-      console.log('Initializing user position');
-      const startPosition = landmarks.value[0].coordinates;
-      
-      if (userMarker.value) {
-        userMarker.value.remove();
-      }
-
-      try {
-        userMarker.value = L.marker([startPosition.lat, startPosition.lng], {
-          zIndexOffset: 1000,
-          icon: L.divIcon({
-            className: 'user-marker',
-            html: '<div class="w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-lg"></div>'
-          })
-        });
-
-        userMarker.value.addTo(map.value);
-        userMarker.value.bindPopup('You are here!');
-        console.log('User marker initialized successfully');
-        return true;
-      } catch (error) {
-        console.error('Error initializing user marker:', error);
-        return false;
-      }
-    };
-
+    // Function to initialize the map
     const initializeMap = () => {
-      console.log('Initializing map');
-      try {
-        map.value = L.map('mapdiv', {
-          center: [1.2805323020001182, 103.85038194843708],
-          zoom: 16,
-          maxBounds: [[-90, -180], [90, 180]],
+      map.value = L.map('mapdiv', {
+        center: [1.2868108, 103.8545349],
+        zoom: 16,
+        maxBounds: [
+          [-90, -180],
+          [90, 180]
+        ],
+        maxZoom: 19,
+        minZoom: 2,
+        updateWhenZooming: false,
+        updateWhenIdle: true,
+        preferCanvas: true,
+        renderer: L.canvas()
+      });
+
+      // Add tile layers
+      const basemap = L.tileLayer(
+        'https://www.onemap.gov.sg/maps/tiles/Default/{z}/{x}/{y}.png',
+        {
+          attribution:
+            '<img src="https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png" style="height:20px;width:20px;"/>&nbsp;<a href="https://www.onemap.gov.sg/" target="_blank" rel="noopener noreferrer">OneMap</a>&nbsp;&copy;&nbsp;contributors&nbsp;&#124;&nbsp;<a href="https://www.sla.gov.sg/" target="_blank" rel="noopener noreferrer">Singapore Land Authority</a>',
           maxZoom: 19,
-          minZoom: 2
-        });
+          minZoom: 11
+        }
+      );
+      const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+      });
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '© OpenStreetMap contributors',
-          maxZoom: 19
-        }).addTo(map.value);
+      basemap.addTo(map.value);
+      osmLayer.addTo(map.value);
 
-        const markersLayer = L.layerGroup().addTo(map.value);
-        addLocationMarkers(markersLayer);
-        
-        // Initialize user position after map is ready
-        setTimeout(() => {
-          const success = initializeUserPosition();
-          if (!success) {
-            console.error('Failed to initialize user position');
-          }
-        }, 100);
+      const markersLayer = L.layerGroup().addTo(map.value);
+      addLocationMarkers(markersLayer);
+      
+      // Add a marker for the user's location
+      userMarker.value = L.marker(userLocation.value, {
+  icon: L.icon({
+    iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Map_marker_icon_%28solid%29.svg/2048px-Map_marker_icon_%28solid%29.svg.png', // Standard marker icon URL
+    iconSize: [32, 32], // Size of the marker
+    iconAnchor: [16, 32], // Anchor the marker at the bottom center
+    popupAnchor: [0, -32] // Position popup above the marker
+  }),
+  zIndexOffset: 1000 // Make sure the user's marker is on top of other markers
+}).addTo(map.value)
+  .bindPopup('You are here!')
+  .openPopup();
 
-        console.log('Map initialized successfully');
-      } catch (error) {
-        console.error('Error initializing map:', error);
-      }
+map.value.setView(userLocation.value, 16); // Center map on user's location
+
     };
 
+    // Function to add location markers to the map
     const addLocationMarkers = (markersLayer) => {
-      markers.value.forEach(marker => marker.remove());
+      // Clear existing markers
+      markers.value.forEach((marker) => {
+        marker.remove();
+      });
       markers.value = [];
       markersLayer.clearLayers();
 
-      landmarks.value.forEach((landmark) => {
-        const marker = L.marker([landmark.coordinates.lat, landmark.coordinates.lng])
-          .bindPopup(() => createPopupContent(landmark))
-          .addTo(markersLayer);
-        markers.value.push(marker);
+      // Add new markers based on the locations prop
+      props.locations.forEach((location) => {
+        // Make sure the location has lat, lng, and name properties
+        if (location.lat && location.lng && location.name) {
+          const marker = L.marker([location.lat, location.lng], {
+            riseOnHover: true,
+            riseOffset: 250
+          });
+
+          const popup = L.popup({
+            closeButton: true,
+            closeOnClick: false, // Prevent map from centering when clicked
+            autoClose: false,
+            className: 'custom-popup-container',
+            autoPan: true,
+            autoPanPadding: [50, 50],
+            keepInView: true
+          }).setContent(createPopupContent(location));
+
+          marker.bindPopup(popup);
+          markers.value.push(marker);
+          marker.addTo(markersLayer);
+        } else {
+          console.warn('Invalid location data:', location);
+        }
       });
     };
 
-    const createPopupContent = (landmark) => {
+    // Function to create popup content
+    const createPopupContent = (location) => {
       const container = document.createElement('div');
       container.innerHTML = `
         <div class="custom-popup">
-          <p class="text-gray-800 font-medium mb-2">${landmark.name}</p>
+          <p class="text-gray-800 font-medium mb-2">${location.name}</p>
           <button class="see-more-btn bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 w-full">
             See More
           </button>
@@ -266,30 +157,63 @@ export default {
       `;
       
       container.querySelector('.see-more-btn').addEventListener('click', () => {
-        emit('landmark-selected', {
-          name: landmark.name,
-          image: landmark.image,
-          location: landmark.coordinates,
-          description: landmark.description
-        });
+        handleSeeMore(location);
       });
-      
+
       return container;
+    };
+
+    const handleSeeMore = (location) => {
+      console.log('See more clicked for location:', location);
+      // We'll pass the entire location object as a query parameter
+      router.push({ 
+        name: 'MapChat', 
+        query: { 
+          locationData: encodeURIComponent(JSON.stringify(location))
+        } 
+      });
+    };
+    
+    // Watch for changes in locations prop to update markers
+    watch(
+      () => props.locations,
+      (newLocations) => {
+        if (map.value) {
+          const markersLayer = L.layerGroup().addTo(map.value);
+          addLocationMarkers(markersLayer);
+        }
+      },
+      { immediate: true }
+    );
+
+    // Function to center map on simulated user location
+    const centerOnUser = () => {
+      console.log('Centering on user');
+      if (userLocation.value && map.value) {
+        map.value.setView(userLocation.value, 16, {
+          animate: true,
+          duration: 1
+        });
+        if (userMarker.value) {
+          userMarker.value.openPopup();
+        }
+      }
     };
 
     onMounted(() => {
       initializeMap();
+      centerOnUser(); // Ensure map is centered on hardcoded user location at first load
     });
 
     return {
-      startWalking,
-      isWalking,
-      nextLandmarkName,
-      currentLocationIndex
+      map,
+      userLocation,
+      centerOnUser
     };
-  },
+  }
 };
 </script>
+
 
 <style scoped>
 #map-container {
@@ -311,18 +235,20 @@ export default {
     text-align: center;
   }
 
+  /* Add styles to prevent popup from disappearing */
   .leaflet-popup {
     position: absolute;
     z-index: 1000;
   }
 }
 
-:deep(.user-marker) {
-  background: transparent;
-  border: none;
+/* Add styles to prevent blank spaces in tiles */
+:deep(.leaflet-tile-container) {
+  will-change: transform;
+  transform-style: preserve-3d;
 }
 
-button:hover:not(:disabled) svg {
+button:hover svg {
   transform: scale(1.1);
   transition: transform 0.2s ease-in-out;
 }
