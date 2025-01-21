@@ -412,7 +412,7 @@ async def chat(request: ChatRequest):
                 #Get by distance instead
                 places_result = gmap.places_nearby(
                     location=(lat, lng),
-                    radius = 500,
+                    radius = 200,
                     type=['tourist_attraction', 'museum', 'art_gallery', 'park', 'shopping_mall', 
                         'hindu_temple', 'church', 'mosque', 'place_of_worship', 
                         'amusement_park', 'aquarium', 'zoo', 
@@ -679,7 +679,7 @@ async def chat(request: ChatRequest):
                 #Get by distance instead
                 places_result = gmap.places_nearby(
                     location=(lat, lng),
-                    radius = 500,
+                    radius = 200,
                     type=['tourist_attraction', 'museum', 'art_gallery', 'park', 'shopping_mall', 
                         'hindu_temple', 'church', 'mosque', 'place_of_worship', 
                         'amusement_park', 'aquarium', 'zoo', 
@@ -749,13 +749,20 @@ async def chat(request: ChatRequest):
 
             # Add address to prompt
             prompt = f"""
-                Due to insufficient information in the RAG, if the location provided below differs greatly from the context in the RAG, completely disregard the RAG and craft original content about the provided location instead.
+                Here are some rules for you to follow:
+                You are a friendly Singapore Tour Guide giving a walking tour.
+                IF <SELECTED_PLACE> matches <ADDRESS>:
+                    TREAT_AS: residential_area
+                ELIF previously_mentioned(<SELECTED_PLACE>, <PAST_MESSAGES>):
+                    TREAT_AS: repeat_visit
+                ELSE:
+                    TREAT_AS: tourist_landmark
 
-                You are a friendly Singapore Tour Guide giving a walking tour. If {selected_place} matches with {address}, this means you are in a residential or developing area. 
-                If both are the same, you might have talked about this location already. Here are past messages you have sent: [{past_messages}]. 
-                If empty, it means this is the first time you are talking about it.  
-                If not empty, do not state the same thing again. Talk about something else about the area.
-
+                You are a tour guide giving a tour in Singapore.
+                Use the RAG only if it directly mentions the landmark and matches the provided location. 
+                If the RAG does not match, completely ignore the rag entirely and talk about {selected_place}.
+                Do not mention about RAG
+                
                 For residential/developing areas:
                 - Focus exclusively on the neighborhood or district, disregarding unrelated RAG content.
                 - Describe the most interesting aspects of the neighborhood or district you're in.
@@ -770,7 +777,13 @@ async def chat(request: ChatRequest):
                 - Describe unique architectural features.
                 - Include interesting facts that make it special.
 
-                Start with "You see [Point of interest/Area name]" and keep the tone friendly and conversational, as if speaking to tourists in person. Don't mention exact addresses or coordinates. Use the RAG only if it directly mentions the landmark and matches the provided location. If the RAG does not match, ignore the rag entirely and talk about  {selected_place}.
+                For repeat_visit:
+                - Share more about the place that you have not talked about before
+                - For example, if you have shared about the food, share about the culture instead.
+
+                MUST_START_WITH: "You see [Location Name]"
+                TONE: friendly, conversational
+                AVOID: exact addresses, coordinates
                 """
 
             
