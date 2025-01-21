@@ -12,7 +12,7 @@
           <div class="flex justify-center items-center">
             <img class="w-24 h-24 object-contain" src="../assets/SGpin.png" alt="SG Pin">
           </div>
-          <p class="text-2xl font-semibold">Welcome to your AI-powered tour!</p>
+          <p class="text-2xl font-semibold">Welcome to your Map Guide!</p>
           <p class="text-xl font-semibold">Select an option to begin:</p>
   
           <div class="flex flex-col space-y-4">

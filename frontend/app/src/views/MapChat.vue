@@ -13,14 +13,15 @@
   <!-- Location Data Display -->
   <div v-if="locationData" class="mt-2 w-full px-4">
     <div class="bg-gray-50 p-3 rounded-lg">
-      <h2 class="text-lg font-bold text-gray-800">{{ locationData.name }}</h2>
+      <h2 class="text-md text-center font-bold text-gray-800">{{ locationData.name }}</h2>
       <div class="text-sm text-gray-600 mt-1">
-        <div v-if="locationData.base64Image">
-          <img :src="'data:image/jpeg;base64,' + locationData.base64Image" alt="Location Image" class="rounded-lg max-w-full h-auto"/>
+        <div v-if="locationData.base64Image" class="flex justify-center">
+          <img :src="'data:image/jpeg;base64,' + locationData.base64Image" alt="Location Image" class="rounded-lg w-20 h-auto"/>
         </div>
         <p v-if="!locationData.base64Image">No image available</p>
       </div>
     </div>
+
 
     <!-- Action Buttons -->
     <div class="flex justify-between mt-4 px-4">
@@ -152,29 +153,10 @@ const { messages } = store;
 const { coords } = useGeolocation();
 
 // Initialize component
-onMounted(async () => {
-  try {
-    // Get and decode the location data from URL
-    if (route.query.locationData) {
-      const decodedData = decodeURIComponent(route.query.locationData);
-      locationData.value = JSON.parse(decodedData);
-      console.log('Received location data:', locationData.value);
-
-      // Fetch the image from the backend using the photoReference
-      const imageResponse = await fetchImage(locationData.value.photoReference);
-      locationData.value.base64Image = imageResponse.base64Image; // Store the base64 image
-    }
-    checkSpeechRecognitionSupport();
-  } catch (error) {
-    console.error('Error parsing location data:', error);
-  }
-});
-onUnmounted(() => {
-  stopRecognition();
-});
-
 const fetchImage = async (photoReference) => {
   try {
+    console.log('Fetching image with photoReference:', photoReference);
+
     const response = await fetch('https://ggdotcom.onrender.com/image', {
       method: 'POST',
       headers: {
@@ -188,12 +170,35 @@ const fetchImage = async (photoReference) => {
     }
 
     const data = await response.json();
-    return data; // Assuming data contains { base64Image: '...' }
+
+
+    return data;
   } catch (error) {
     console.error('Error fetching image:', error);
-    return { base64Image: null };
+    return { base64_image: null }; // Return a fallback response
   }
 };
+
+
+onMounted(async () => {
+  try {
+    // Get and decode the location data from URL
+    if (route.query.locationData) {
+      const decodedData = decodeURIComponent(route.query.locationData);
+      locationData.value = JSON.parse(decodedData);
+      console.log('Received location data:', locationData.value);
+
+      // Fetch the image from the backend using the photoReference
+      const imageResponse = await fetchImage(locationData.value.photoReference);
+
+      // Use the correct key for the base64 image
+      locationData.value.base64Image = imageResponse.base64_image; 
+    }
+    checkSpeechRecognitionSupport();
+  } catch (error) {
+    console.error('Error parsing location data:', error);
+  }
+});
 
 // Speech Recognition Setup
 const checkSpeechRecognitionSupport = () => {
@@ -297,7 +302,7 @@ const talkAboutPlace = async () => {
     // Prepare the payload with location and optional image
     const payload = {
       location: `${locationData.value.lat},${locationData.value.lng}`,
-      text: 'Tell me about this place', // Modify as necessary or allow user input
+      text: 'Can you tell me about the landmark that I am at right now', // Modify as necessary or allow user input
       image: locationData.value.base64Image || null, // Send the image if available
     };
 
