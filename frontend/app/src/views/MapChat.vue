@@ -26,9 +26,6 @@
       <button @click="talkAboutPlace" class="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-md text-sm transition duration-300 ease-in-out transform hover:scale-105">
         Talk about this place
       </button>
-      <button @click="takeMeThere" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md text-sm transition duration-300 ease-in-out transform hover:scale-105">
-        Take me there
-      </button>
     </div>
   </header>
     <main class="flex-grow overflow-y-auto p-6 space-y-6">
